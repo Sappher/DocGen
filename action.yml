@@ -1,0 +1,59 @@
+name: 'DocGen'
+description: 'Analyze a repository with OpenAI using reusable prompts and open a PR with generated docs'
+author: 'sappher'
+branding:
+  icon: 'book'
+  color: 'blue'
+inputs:
+  prompts-folder:
+    description: 'Folder containing .md prompt files'
+    required: false
+    default: 'prompts'
+  output-folder:
+    description: 'Folder where AI outputs will be written'
+    required: false
+    default: 'generated-docs'
+  openai-model:
+    description: 'OpenAI model identifier (e.g., gpt-4.1-mini)'
+    required: false
+    default: 'gpt-4.1-mini'
+  openai-api-key:
+    description: 'OpenAI API key (use secrets)'
+    required: true
+  github-token:
+    description: 'GitHub token with repo scope (e.g., secrets.GITHUB_TOKEN)'
+    required: true
+  exclude-patterns:
+    description: 'Optional newline separated patterns to exclude from repo context'
+    required: false
+  max-file-size-bytes:
+    description: 'Maximum individual file size to include in the model context'
+    required: false
+    default: '750000'
+  max-repo-characters:
+    description: 'Maximum pooled characters from repository files added to the model context'
+    required: false
+    default: '400000'
+  temperature:
+    description: 'OpenAI sampling temperature'
+    required: false
+    default: '0'
+  branch-name:
+    description: 'Branch to create/update for generated docs'
+    required: false
+  base-branch:
+    description: 'Base branch for the pull request'
+    required: false
+  pr-title:
+    description: 'Pull request title'
+    required: false
+  pr-body:
+    description: 'Pull request body template'
+    required: false
+  dry-run:
+    description: 'If true, skip git pushes and PR creation'
+    required: false
+    default: 'false'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
