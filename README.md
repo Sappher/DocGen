@@ -40,6 +40,8 @@ jobs:
 ```
 
 > **Note:** Always provide `openai-api-key` and `github-token` via secrets. The action also respects the same values from environment variables for compatibility with workflows that prefer `env` assignments.
+>
+> **GitHub permissions:** Ensure the repository’s *Settings → Actions → General → Workflow permissions* is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
 
 ## Inputs
 
