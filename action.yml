@@ -14,9 +14,9 @@ inputs:
     required: false
     default: 'generated-docs'
   openai-model:
-    description: 'OpenAI model identifier (e.g., gpt-4.1-mini)'
+    description: 'OpenAI model identifier (e.g., gpt-5-mini)'
     required: false
-    default: 'gpt-4.1-mini'
+    default: 'gpt-5-mini'
   openai-api-key:
     description: 'OpenAI API key (use secrets)'
     required: true
@@ -33,7 +33,7 @@ inputs:
   max-repo-characters:
     description: 'Maximum pooled characters from repository files added to the model context'
     required: false
-    default: '400000'
+    default: '1000000'
   temperature:
     description: 'OpenAI sampling temperature'
     required: false
