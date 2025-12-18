@@ -3,7 +3,7 @@ import path from 'path';
 import * as core from '@actions/core';
 import { context } from '@actions/github';
 
-import { ActionInputs, ConfluenceSettings } from './types';
+import { ActionInputs, ConfluenceSettings } from '../types/domain';
 
 function coalesceInput(name: string, envName?: string): string {
   const actionValue = core.getInput(name);
@@ -90,6 +90,8 @@ export function getActionInputs(): ActionInputs {
   const promptsFolder = path.resolve(workspacePath, promptsFolderInput);
   const outputFolder = path.resolve(workspacePath, outputFolderInput);
 
+  const gitPublisherEnabled = coalesceBooleanInput('enable-git', 'ENABLE_GIT', false);
+
   const openaiApiKey =
     coalesceInput('openai-api-key', 'OPENAI_API_KEY') || process.env.OPENAI_API_KEY || '';
   if (!openaiApiKey) {
@@ -98,8 +100,10 @@ export function getActionInputs(): ActionInputs {
 
   const githubToken =
     coalesceInput('github-token', 'GITHUB_TOKEN') || process.env.GITHUB_TOKEN || '';
-  if (!githubToken) {
-    throw new Error('Missing GitHub token. Provide it via the github-token input or env.');
+  if (gitPublisherEnabled && !githubToken) {
+    throw new Error(
+      'Missing GitHub token. Provide it via the github-token input or env when enable-git is true.',
+    );
   }
 
   const excludePatterns = core
@@ -234,6 +238,7 @@ export function getActionInputs(): ActionInputs {
     repositoryName,
     runId,
     runAttempt,
+    gitPublisherEnabled,
     confluence: confluenceConfig,
   };
 }

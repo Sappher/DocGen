@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildRepositoryContext } from '../src/contextBuilder';
+import { buildRepositoryContext } from '../src/domain/services/contextBuilder';
 
 describe('buildRepositoryContext', () => {
   it('limits output when exceeding the maximum characters', () => {

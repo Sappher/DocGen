@@ -36569,7 +36569,7 @@ module.exports = require("zlib");
 
 /***/ }),
 
-/***/ 5751:
+/***/ 9423:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -36691,13 +36691,14 @@ function getActionInputs() {
     const outputFolderInput = coalesceInput('output-folder', 'OUTPUT_FOLDER') || 'generated-docs';
     const promptsFolder = path_1.default.resolve(workspacePath, promptsFolderInput);
     const outputFolder = path_1.default.resolve(workspacePath, outputFolderInput);
+    const gitPublisherEnabled = coalesceBooleanInput('enable-git', 'ENABLE_GIT', false);
     const openaiApiKey = coalesceInput('openai-api-key', 'OPENAI_API_KEY') || process.env.OPENAI_API_KEY || '';
     if (!openaiApiKey) {
         throw new Error('Missing OpenAI API key. Provide it via the openai-api-key input or env.');
     }
     const githubToken = coalesceInput('github-token', 'GITHUB_TOKEN') || process.env.GITHUB_TOKEN || '';
-    if (!githubToken) {
-        throw new Error('Missing GitHub token. Provide it via the github-token input or env.');
+    if (gitPublisherEnabled && !githubToken) {
+        throw new Error('Missing GitHub token. Provide it via the github-token input or env when enable-git is true.');
     }
     const excludePatterns = core
         .getMultilineInput('exclude-patterns', { trimWhitespace: true })
@@ -36798,6 +36799,7 @@ function getActionInputs() {
         repositoryName,
         runId,
         runAttempt,
+        gitPublisherEnabled,
         confluence: confluenceConfig,
     };
 }
@@ -36805,7 +36807,7 @@ function getActionInputs() {
 
 /***/ }),
 
-/***/ 3707:
+/***/ 4769:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -36871,226 +36873,7 @@ function buildRepositoryContext(files, maxCharacters) {
 
 /***/ }),
 
-/***/ 3049:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runGitCommand = runGitCommand;
-exports.hasChanges = hasChanges;
-exports.configureGitUser = configureGitUser;
-exports.checkoutBranch = checkoutBranch;
-exports.pushBranch = pushBranch;
-const core = __importStar(__nccwpck_require__(7484));
-const exec_1 = __nccwpck_require__(5236);
-async function runGitCommand(args, silent = false) {
-    let output = '';
-    let errorOutput = '';
-    await (0, exec_1.exec)('git', args, {
-        silent,
-        listeners: {
-            stdout: (data) => {
-                output += data.toString();
-            },
-            stderr: (data) => {
-                errorOutput += data.toString();
-            },
-        },
-    });
-    if (errorOutput && !silent) {
-        core.info(errorOutput);
-    }
-    return output.trim();
-}
-async function hasChanges() {
-    const status = await runGitCommand(['status', '--porcelain'], true);
-    return status.length > 0;
-}
-async function configureGitUser(name, email) {
-    await runGitCommand(['config', 'user.name', name]);
-    await runGitCommand(['config', 'user.email', email]);
-}
-async function checkoutBranch(branchName, baseRef) {
-    if (baseRef) {
-        await runGitCommand(['fetch', 'origin', baseRef]);
-        await runGitCommand(['checkout', '-B', branchName, `origin/${baseRef}`]);
-        return;
-    }
-    await runGitCommand(['checkout', '-B', branchName]);
-}
-async function pushBranch(branchName) {
-    await runGitCommand(['push', 'origin', branchName, '--force-with-lease']);
-}
-
-
-/***/ }),
-
-/***/ 6981:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const path_1 = __importDefault(__nccwpck_require__(6928));
-const core = __importStar(__nccwpck_require__(7484));
-const config_1 = __nccwpck_require__(5751);
-const contextBuilder_1 = __nccwpck_require__(3707);
-const openaiClient_1 = __nccwpck_require__(3736);
-const prompts_1 = __nccwpck_require__(774);
-const confluencePublisher_1 = __nccwpck_require__(5737);
-const gitPublisher_1 = __nccwpck_require__(5087);
-const repoScanner_1 = __nccwpck_require__(3927);
-async function run() {
-    try {
-        const config = (0, config_1.getActionInputs)();
-        core.info(`Using prompts from ${config.promptsFolderInput} and outputs to ${config.outputFolderInput}`);
-        const prompts = await (0, prompts_1.loadPromptFiles)(config.promptsFolder);
-        if (!prompts.length) {
-            throw new Error('No prompts were discovered. Please add .md files to the prompt folder.');
-        }
-        const excludePatterns = [...config.excludePatterns];
-        const outputRelative = path_1.default.relative(config.workspacePath, config.outputFolder).split(path_1.default.sep).join('/');
-        if (outputRelative && !outputRelative.startsWith('..')) {
-            excludePatterns.push(`${outputRelative}/`);
-        }
-        const repoFiles = await (0, repoScanner_1.collectRepositoryFiles)({
-            root: config.workspacePath,
-            excludePatterns,
-            maxFileSizeBytes: config.maxFileSizeBytes,
-        });
-        if (!repoFiles.length) {
-            core.warning('No repository files collected for context. The AI will only see the prompts.');
-        }
-        const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)(repoFiles, config.maxRepoCharacters);
-        core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
-        const openaiClient = new openaiClient_1.OpenAIClient(config.openaiApiKey);
-        const publishers = [new gitPublisher_1.GitPublisher(config)];
-        if (config.confluence?.enabled) {
-            publishers.push(new confluencePublisher_1.ConfluencePublisher(config.confluence));
-        }
-        await Promise.all(publishers.map((publisher) => publisher.prepare()));
-        const promptResults = [];
-        for (const prompt of prompts) {
-            core.startGroup(`Processing prompt ${prompt.relativePath}`);
-            try {
-                const response = await openaiClient.analyzePrompt({
-                    model: config.openaiModel,
-                    promptName: prompt.relativePath,
-                    repoContext: contextText,
-                    promptContent: prompt.content,
-                    temperature: config.temperature,
-                });
-                const parts = prompt.relativePath.split(/[\\/]+/).filter(Boolean);
-                if (!parts.length) {
-                    parts.push(path_1.default.basename(prompt.absolutePath));
-                }
-                const outputRelativePath = parts.join('/');
-                const outputAbsolutePath = path_1.default.join(config.outputFolder, ...parts);
-                const result = {
-                    prompt,
-                    outputRelativePath,
-                    outputAbsolutePath,
-                    content: response,
-                };
-                promptResults.push(result);
-                for (const publisher of publishers) {
-                    await publisher.publishPromptResult(result);
-                }
-            }
-            finally {
-                core.endGroup();
-            }
-        }
-        const summary = { promptResults };
-        for (const publisher of publishers) {
-            await publisher.finalize(summary);
-        }
-        const summaryBuilder = core.summary.addHeading('DocGen AI run').addRaw(`Processed ${prompts.length} prompt(s).\\nIncluded ${includedFiles.length} repo file(s) in context.`);
-        if (promptResults.length) {
-            summaryBuilder.addList(promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`));
-        }
-        await summaryBuilder.write();
-    }
-    catch (error) {
-        core.setFailed(error.message);
-    }
-}
-run();
-
-
-/***/ }),
-
-/***/ 3736:
+/***/ 3234:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -37219,7 +37002,7 @@ function extractText(response) {
 
 /***/ }),
 
-/***/ 774:
+/***/ 3800:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -37318,7 +37101,352 @@ async function loadPromptFiles(promptsFolder) {
 
 /***/ }),
 
-/***/ 5737:
+/***/ 7377:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.collectRepositoryFiles = collectRepositoryFiles;
+const promises_1 = __importDefault(__nccwpck_require__(1943));
+const path_1 = __importDefault(__nccwpck_require__(6928));
+const core = __importStar(__nccwpck_require__(7484));
+const ignore_1 = __importDefault(__nccwpck_require__(298));
+const istextorbinary_1 = __nccwpck_require__(3298);
+const DEFAULT_EXCLUDES = [
+    '.git/',
+    'node_modules/',
+    '.github/',
+    '.vscode/',
+    '.idea/',
+    'dist/',
+    'coverage/',
+    '*.png',
+    '*.jpg',
+    '*.jpeg',
+    '*.gif',
+    '*.bmp',
+    '*.ico',
+    '*.svg',
+    '*.mp4',
+    '*.mp3',
+    '*.zip',
+    '*.tar',
+    '*.gz',
+    '*.tgz',
+    '*.7z',
+    '*.lock',
+];
+async function collectRepositoryFiles(options) {
+    const ig = (0, ignore_1.default)().add(DEFAULT_EXCLUDES).add(options.excludePatterns);
+    const files = [];
+    const normalizePath = (input) => {
+        const normalized = path_1.default.normalize(input).replace(/\\/g, '/');
+        if (normalized === '.' || normalized === './') {
+            return '';
+        }
+        return normalized.replace(/^\.\//, '');
+    };
+    async function walk(relativeDir) {
+        const absoluteDir = relativeDir ? path_1.default.join(options.root, relativeDir) : options.root;
+        const entries = await promises_1.default.readdir(absoluteDir, { withFileTypes: true });
+        for (const entry of entries) {
+            const relativePath = path_1.default.join(relativeDir, entry.name);
+            const normalized = normalizePath(relativePath);
+            if (ig.ignores(normalized)) {
+                continue;
+            }
+            const absoluteChild = path_1.default.join(options.root, relativePath);
+            if (entry.isDirectory()) {
+                if (ig.ignores(`${normalized}/`)) {
+                    continue;
+                }
+                await walk(relativePath);
+                continue;
+            }
+            if (!entry.isFile()) {
+                continue;
+            }
+            const stats = await promises_1.default.stat(absoluteChild);
+            if (stats.size > options.maxFileSizeBytes) {
+                core.info(`Skipping ${normalized} (> ${options.maxFileSizeBytes} bytes).`);
+                continue;
+            }
+            const buffer = await promises_1.default.readFile(absoluteChild);
+            if ((0, istextorbinary_1.isBinary)(absoluteChild, buffer)) {
+                core.info(`Skipping binary file ${normalized}.`);
+                continue;
+            }
+            files.push({
+                relativePath: normalized,
+                size: buffer.length,
+                content: buffer.toString('utf8'),
+            });
+        }
+    }
+    await walk('');
+    files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+    return files;
+}
+
+
+/***/ }),
+
+/***/ 3049:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.runGitCommand = runGitCommand;
+exports.hasChanges = hasChanges;
+exports.configureGitUser = configureGitUser;
+exports.checkoutBranch = checkoutBranch;
+exports.pushBranch = pushBranch;
+const core = __importStar(__nccwpck_require__(7484));
+const exec_1 = __nccwpck_require__(5236);
+async function runGitCommand(args, silent = false) {
+    let output = '';
+    let errorOutput = '';
+    await (0, exec_1.exec)('git', args, {
+        silent,
+        listeners: {
+            stdout: (data) => {
+                output += data.toString();
+            },
+            stderr: (data) => {
+                errorOutput += data.toString();
+            },
+        },
+    });
+    if (errorOutput && !silent) {
+        core.info(errorOutput);
+    }
+    return output.trim();
+}
+async function hasChanges() {
+    const status = await runGitCommand(['status', '--porcelain'], true);
+    return status.length > 0;
+}
+async function configureGitUser(name, email) {
+    await runGitCommand(['config', 'user.name', name]);
+    await runGitCommand(['config', 'user.email', email]);
+}
+async function checkoutBranch(branchName, baseRef) {
+    if (baseRef) {
+        await runGitCommand(['fetch', 'origin', baseRef]);
+        await runGitCommand(['checkout', '-B', branchName, `origin/${baseRef}`]);
+        return;
+    }
+    await runGitCommand(['checkout', '-B', branchName]);
+}
+async function pushBranch(branchName) {
+    await runGitCommand(['push', 'origin', branchName, '--force-with-lease']);
+}
+
+
+/***/ }),
+
+/***/ 9931:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.runAction = runAction;
+const path_1 = __importDefault(__nccwpck_require__(6928));
+const core = __importStar(__nccwpck_require__(7484));
+const inputs_1 = __nccwpck_require__(9423);
+const contextBuilder_1 = __nccwpck_require__(4769);
+const openaiClient_1 = __nccwpck_require__(3234);
+const prompts_1 = __nccwpck_require__(3800);
+const repoScanner_1 = __nccwpck_require__(7377);
+const publishers_1 = __nccwpck_require__(8483);
+async function runAction() {
+    try {
+        const config = (0, inputs_1.getActionInputs)();
+        if (!config.gitPublisherEnabled && !(config.confluence?.enabled)) {
+            throw new Error("No publishers enabled. Enable at least one, e.g., set 'enable-git: true' in the workflow inputs.");
+        }
+        core.info(`Using prompts from ${config.promptsFolderInput} and outputs to ${config.outputFolderInput}`);
+        const prompts = await (0, prompts_1.loadPromptFiles)(config.promptsFolder);
+        if (!prompts.length) {
+            throw new Error('No prompts were discovered. Please add .md files to the prompt folder.');
+        }
+        const excludePatterns = [...config.excludePatterns];
+        const outputRelative = path_1.default.relative(config.workspacePath, config.outputFolder).split(path_1.default.sep).join('/');
+        if (outputRelative && !outputRelative.startsWith('..')) {
+            excludePatterns.push(`${outputRelative}/`);
+        }
+        const repoFiles = await (0, repoScanner_1.collectRepositoryFiles)({
+            root: config.workspacePath,
+            excludePatterns,
+            maxFileSizeBytes: config.maxFileSizeBytes,
+        });
+        if (!repoFiles.length) {
+            core.warning('No repository files collected for context. The AI will only see the prompts.');
+        }
+        const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)(repoFiles, config.maxRepoCharacters);
+        core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
+        const openaiClient = new openaiClient_1.OpenAIClient(config.openaiApiKey);
+        const publishers = (0, publishers_1.createPublishers)(config);
+        await Promise.all(publishers.map((publisher) => publisher.prepare()));
+        const promptResults = [];
+        for (const prompt of prompts) {
+            core.startGroup(`Processing prompt ${prompt.relativePath}`);
+            try {
+                const response = await openaiClient.analyzePrompt({
+                    model: config.openaiModel,
+                    promptName: prompt.relativePath,
+                    repoContext: contextText,
+                    promptContent: prompt.content,
+                    temperature: config.temperature,
+                });
+                const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
+                if (!parts.length) {
+                    parts.push(path_1.default.basename(prompt.absolutePath));
+                }
+                const outputRelativePath = parts.join('/');
+                const outputAbsolutePath = path_1.default.join(config.outputFolder, ...parts);
+                const result = {
+                    prompt,
+                    outputRelativePath,
+                    outputAbsolutePath,
+                    content: response,
+                };
+                promptResults.push(result);
+                for (const publisher of publishers) {
+                    await publisher.publishPromptResult(result);
+                }
+            }
+            finally {
+                core.endGroup();
+            }
+        }
+        const summary = { promptResults };
+        for (const publisher of publishers) {
+            await publisher.finalize(summary);
+        }
+        const summaryBuilder = core.summary.addHeading('DocGen AI run').addRaw(`Processed ${prompts.length} prompt(s).\nIncluded ${includedFiles.length} repo file(s) in context.`);
+        if (promptResults.length) {
+            summaryBuilder.addList(promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`));
+        }
+        await summaryBuilder.write();
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
+}
+
+
+/***/ }),
+
+/***/ 6281:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -37381,16 +37509,15 @@ class ConfluencePublisher {
         await this.updatePage(pageId, result);
     }
     async finalize(_summary) {
-        // Nothing to do; per-prompt updates are handled during publishPromptResult
+        // no-op
     }
     async updatePage(pageId, result) {
         try {
-            const existing = (await this.confluenceRequest(`/rest/api/content/${pageId}?expand=version,space`));
+            const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`));
             const version = (existing?.version?.number ?? 0) + 1;
             const title = existing?.title || result.prompt.relativePath;
             const pageType = existing?.type || 'page';
             const spaceKey = this.settings.spaceKey || existing?.space?.key;
-            const bodyHtml = this.renderMarkdown(result.content);
             const payload = {
                 id: pageId,
                 type: pageType,
@@ -37398,13 +37525,13 @@ class ConfluencePublisher {
                 space: spaceKey ? { key: spaceKey } : undefined,
                 body: {
                     storage: {
-                        value: bodyHtml,
+                        value: this.renderMarkdown(result.content),
                         representation: 'storage',
                     },
                 },
                 version: { number: version },
             };
-            await this.confluenceRequest(`/rest/api/content/${pageId}`, {
+            await this.request(`/rest/api/content/${pageId}`, {
                 method: 'PUT',
                 body: JSON.stringify(payload),
             });
@@ -37417,7 +37544,7 @@ class ConfluencePublisher {
     renderMarkdown(markdown) {
         return marked_1.marked.parse(markdown).trim();
     }
-    async confluenceRequest(pathname, init) {
+    async request(pathname, init) {
         const url = this.buildUrl(pathname);
         const response = await (0, node_fetch_1.default)(url, {
             ...init,
@@ -37450,7 +37577,7 @@ exports.ConfluencePublisher = ConfluencePublisher;
 
 /***/ }),
 
-/***/ 5087:
+/***/ 1271:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -37578,128 +37705,24 @@ function buildPrBody(template, summary) {
 
 /***/ }),
 
-/***/ 3927:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ 8483:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.collectRepositoryFiles = collectRepositoryFiles;
-const promises_1 = __importDefault(__nccwpck_require__(1943));
-const path_1 = __importDefault(__nccwpck_require__(6928));
-const core = __importStar(__nccwpck_require__(7484));
-const ignore_1 = __importDefault(__nccwpck_require__(298));
-const istextorbinary_1 = __nccwpck_require__(3298);
-const DEFAULT_EXCLUDES = [
-    '.git/',
-    'node_modules/',
-    '.github/',
-    '.vscode/',
-    '.idea/',
-    'dist/',
-    'coverage/',
-    '*.png',
-    '*.jpg',
-    '*.jpeg',
-    '*.gif',
-    '*.bmp',
-    '*.ico',
-    '*.svg',
-    '*.mp4',
-    '*.mp3',
-    '*.zip',
-    '*.tar',
-    '*.gz',
-    '*.tgz',
-    '*.7z',
-    '*.lock',
-];
-async function collectRepositoryFiles(options) {
-    const ig = (0, ignore_1.default)().add(DEFAULT_EXCLUDES).add(options.excludePatterns);
-    const files = [];
-    const normalizePath = (input) => {
-        const normalized = path_1.default.normalize(input).replace(/\\/g, '/');
-        if (normalized === '.' || normalized === './') {
-            return '';
-        }
-        return normalized.replace(/^\.\//, '');
-    };
-    async function walk(relativeDir) {
-        const absoluteDir = relativeDir ? path_1.default.join(options.root, relativeDir) : options.root;
-        const entries = await promises_1.default.readdir(absoluteDir, { withFileTypes: true });
-        for (const entry of entries) {
-            const relativePath = path_1.default.join(relativeDir, entry.name);
-            const normalized = normalizePath(relativePath);
-            if (ig.ignores(normalized)) {
-                continue;
-            }
-            const absoluteChild = path_1.default.join(options.root, relativePath);
-            if (entry.isDirectory()) {
-                if (ig.ignores(`${normalized}/`)) {
-                    continue;
-                }
-                await walk(relativePath);
-                continue;
-            }
-            if (!entry.isFile()) {
-                continue;
-            }
-            const stats = await promises_1.default.stat(absoluteChild);
-            if (stats.size > options.maxFileSizeBytes) {
-                core.info(`Skipping ${normalized} (> ${options.maxFileSizeBytes} bytes).`);
-                continue;
-            }
-            const buffer = await promises_1.default.readFile(absoluteChild);
-            if ((0, istextorbinary_1.isBinary)(absoluteChild, buffer)) {
-                core.info(`Skipping binary file ${normalized}.`);
-                continue;
-            }
-            files.push({
-                relativePath: normalized,
-                size: buffer.length,
-                content: buffer.toString('utf8'),
-            });
-        }
+exports.createPublishers = createPublishers;
+const confluence_1 = __nccwpck_require__(6281);
+const git_1 = __nccwpck_require__(1271);
+function createPublishers(config) {
+    const publishers = [];
+    if (config.gitPublisherEnabled) {
+        publishers.push(new git_1.GitPublisher(config));
     }
-    await walk('');
-    files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-    return files;
+    if (config.confluence?.enabled) {
+        publishers.push(new confluence_1.ConfluencePublisher(config.confluence));
+    }
+    return publishers;
 }
 
 
@@ -52495,12 +52518,18 @@ module.exports = /*#__PURE__*/JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(6981);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be in strict mode.
+(() => {
+"use strict";
+var exports = __webpack_exports__;
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const runAction_1 = __nccwpck_require__(9931);
+(0, runAction_1.runAction)();
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;

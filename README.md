@@ -29,6 +29,7 @@ jobs:
       - name: Run DocGen
         uses: sappher/docgen@v1
         with:
+          enable-git: true
           prompts-folder: gen/prompts
           output-folder: gen/docs
           openai-model: gpt-4.1-mini
@@ -42,6 +43,8 @@ jobs:
 > **Note:** Always provide `openai-api-key` and `github-token` via secrets. The action also respects the same values from environment variables for compatibility with workflows that prefer `env` assignments.
 >
 > **GitHub permissions:** Ensure the repository’s *Settings → Actions → General → Workflow permissions* is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
+>
+> **Publishers:** At least one publisher must be enabled. Set `enable-git: true` (as above) or enable Confluence; otherwise the action exits early with an error reminding you to enable GitHub publishing.
 
 ## Inputs
 
@@ -60,6 +63,7 @@ jobs:
 | `base-branch` |  | Base branch for the PR (defaults to the triggering ref). |
 | `pr-title` / `pr-body` |  | Customize PR metadata. |
 | `dry-run` |  | When `true`, skip git pushes and PR creation while still writing files locally. |
+| `enable-git` |  | Set to `true` to allow DocGen to commit files and open a PR in the current repo. |
 | `enable-confluence` |  | Set to `true` to push generated outputs to Confluence in addition to the PR. |
 | `confluence-base-url` |  | Base URL to your Confluence site (e.g., `https://example.atlassian.net/wiki/`). Required when Confluence publishing is enabled. |
 | `confluence-email` / `confluence-api-token` |  | Email + PAT used for Confluence REST authentication. |

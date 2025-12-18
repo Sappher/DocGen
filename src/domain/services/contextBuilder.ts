@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 
-import { RepositoryFile } from './types';
+import { RepositoryFile } from '../../types/domain';
 
 export interface RepoContextResult {
   contextText: string;
