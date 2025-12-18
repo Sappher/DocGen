@@ -48,6 +48,9 @@ export async function runAction(): Promise<void> {
 
     let embeddingsRanker: EmbeddingsRanker | undefined;
     if (config.embeddings?.enabled) {
+      core.info(
+        `Embeddings enabled: generating vectors for ${repoChunks.length} chunk(s) using ${config.embeddings.model}. This may take a few minutes.`,
+      );
       try {
         embeddingsRanker = await EmbeddingsRanker.build({
           apiKey: config.openaiApiKey,
@@ -61,6 +64,7 @@ export async function runAction(): Promise<void> {
             (error as Error).message
           }`,
         );
+        core.info('Embeddings ready; chunks will be ranked per prompt.');
         embeddingsRanker = undefined;
       }
     }

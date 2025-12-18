@@ -36720,7 +36720,7 @@ function getActionInputs() {
     const temperature = Number.isFinite(parsedTemp)
         ? Math.min(Math.max(parsedTemp, 0), 2)
         : 0;
-    const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-5-mini';
+    const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-4o-mini';
     const branchNameInput = coalesceInput('branch-name', 'BRANCH_NAME');
     const runId = github_1.context.runId ?? Date.now();
     const runAttempt = github_1.context.runAttempt ?? 1;
@@ -37032,12 +37032,46 @@ function cosineSimilarity(a, b) {
 /***/ }),
 
 /***/ 5660:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EmbeddingsRanker = void 0;
+const core = __importStar(__nccwpck_require__(7484));
 const embeddings_1 = __nccwpck_require__(9305);
 class EmbeddingsRanker {
     constructor(client, chunks, chunkEmbeddings, maxChunks) {
@@ -37049,6 +37083,7 @@ class EmbeddingsRanker {
     static async build(options) {
         const client = new embeddings_1.EmbeddingsClient(options.apiKey, options.settings.model);
         const chunkEmbeddings = await client.embedTexts(options.chunks.map((chunk) => chunk.content));
+        core.info(`Generated embeddings for ${options.chunks.length} chunk(s).`);
         return new EmbeddingsRanker(client, options.chunks, chunkEmbeddings, options.settings.maxChunksPerPrompt);
     }
     async rankChunks(promptText) {
@@ -37591,6 +37626,7 @@ async function runAction() {
         core.info(`Prepared ${repoChunks.length} repository chunks for context building.`);
         let embeddingsRanker;
         if (config.embeddings?.enabled) {
+            core.info(`Embeddings enabled: generating vectors for ${repoChunks.length} chunk(s) using ${config.embeddings.model}. This may take a few minutes.`);
             try {
                 embeddingsRanker = await embeddingsRanker_1.EmbeddingsRanker.build({
                     apiKey: config.openaiApiKey,
@@ -37601,6 +37637,7 @@ async function runAction() {
             }
             catch (error) {
                 core.warning(`Failed to initialize embeddings ranker, falling back to sequential chunks: ${error.message}`);
+                core.info('Embeddings ready; chunks will be ranked per prompt.');
                 embeddingsRanker = undefined;
             }
         }

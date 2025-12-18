@@ -32,7 +32,7 @@ jobs:
           enable-git: true
           prompts-folder: gen/prompts
           output-folder: gen/docs
-          openai-model: gpt-5-mini
+          openai-model: gpt-4o-mini
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
@@ -54,7 +54,7 @@ jobs:
 | `github-token`                              | ✅       | Token used for Git and PR operations. Defaults to `secrets.GITHUB_TOKEN`.                                                                                            |
 | `prompts-folder`                            |          | Path to the folder containing prompt `.md` files. Defaults to `prompts`.                                                                                             |
 | `output-folder`                             |          | Destination for generated outputs. Defaults to `generated-docs`.                                                                                                     |
-| `openai-model`                              |          | OpenAI model name (e.g., `gpt-5-mini`).                                                                                                                              |
+| `openai-model`                              |          | OpenAI model name (e.g., `gpt-4o-mini`).                                                                                                                              |
 | `exclude-patterns`                          |          | Newline-separated patterns (gitignore style) to skip when building the repo context.                                                                                 |
 | `max-file-size-bytes`                       |          | Maximum individual file size to include (defaults to `750000`).                                                                                                      |
 | `max-repo-characters`                       |          | Maximum combined characters of repo context sent to the model (defaults to `1000000`).                                                                               |
