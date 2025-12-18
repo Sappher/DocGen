@@ -36714,6 +36714,7 @@ function getActionInputs() {
     }
     const maxFileSizeBytes = parseNumber(coalesceInput('max-file-size-bytes', 'MAX_FILE_SIZE_BYTES'), 750000);
     const maxRepoCharacters = parseNumber(coalesceInput('max-repo-characters', 'MAX_REPO_CHARACTERS'), 1000000);
+    const contextChunkSize = parseNumber(coalesceInput('context-chunk-size', 'CONTEXT_CHUNK_SIZE'), 4000);
     const temperatureRaw = coalesceInput('temperature', 'OPENAI_TEMPERATURE');
     const parsedTemp = Number(temperatureRaw);
     const temperature = Number.isFinite(parsedTemp)
@@ -36735,6 +36736,20 @@ function getActionInputs() {
         throw new Error('GITHUB_REPOSITORY env is required when running inside GitHub Actions.');
     }
     const [repositoryOwner, repositoryName] = repoFullName.split('/', 2);
+    const enableEmbeddings = coalesceBooleanInput('enable-embeddings', 'ENABLE_EMBEDDINGS', false);
+    let embeddingsConfig;
+    if (enableEmbeddings) {
+        const embeddingsModel = coalesceInput('embeddings-model', 'EMBEDDINGS_MODEL') ||
+            process.env.EMBEDDINGS_MODEL ||
+            'text-embedding-3-large';
+        const maxChunksRaw = coalesceInput('max-embeddings-chunks', 'MAX_EMBEDDINGS_CHUNKS');
+        const maxChunks = maxChunksRaw ? parseNumber(maxChunksRaw, 0) : undefined;
+        embeddingsConfig = {
+            enabled: true,
+            model: embeddingsModel,
+            maxChunksPerPrompt: maxChunks,
+        };
+    }
     const enableConfluence = coalesceBooleanInput('enable-confluence', 'ENABLE_CONFLUENCE', false);
     let confluenceConfig;
     if (enableConfluence) {
@@ -36788,6 +36803,7 @@ function getActionInputs() {
         excludePatterns,
         maxFileSizeBytes,
         maxRepoCharacters,
+        contextChunkSize,
         temperature,
         branchName,
         baseBranch,
@@ -36800,8 +36816,46 @@ function getActionInputs() {
         runId,
         runAttempt,
         gitPublisherEnabled,
+        embeddings: embeddingsConfig,
         confluence: confluenceConfig,
     };
+}
+
+
+/***/ }),
+
+/***/ 837:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createFileChunks = createFileChunks;
+function createFileChunks(files, chunkSize) {
+    const chunks = [];
+    for (const file of files) {
+        const contentChunks = chunkContent(file.content, chunkSize);
+        const totalChunks = contentChunks.length;
+        contentChunks.forEach((content, index) => {
+            chunks.push({
+                file,
+                chunkIndex: index,
+                totalChunks,
+                content,
+            });
+        });
+    }
+    return chunks;
+}
+function chunkContent(content, size) {
+    if (content.length <= size) {
+        return [content];
+    }
+    const chunks = [];
+    for (let i = 0; i < content.length; i += size) {
+        chunks.push(content.slice(i, i + size));
+    }
+    return chunks;
 }
 
 
@@ -36848,36 +36902,25 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildRepositoryContext = buildRepositoryContext;
 const core = __importStar(__nccwpck_require__(7484));
-const DEFAULT_CHUNK_SIZE = 4000;
 function buildRepositoryContext(options) {
-    const { files, maxCharacters, chunkSize = DEFAULT_CHUNK_SIZE } = options;
+    const { chunks, maxCharacters } = options;
     const included = [];
+    const includedSet = new Set();
     let remaining = maxCharacters;
     const segments = [];
-    let outOfSpace = false;
-    for (const file of files) {
-        const chunks = chunkContent(file.content, chunkSize);
-        const totalChunks = chunks.length;
-        let addedChunks = 0;
-        for (let index = 0; index < totalChunks; index += 1) {
-            const chunk = chunks[index];
-            const header = `FILE: ${file.relativePath} (chunk ${index + 1}/${totalChunks})\n`;
-            const snippet = `${chunk}\n\n`;
-            const needed = header.length + snippet.length;
-            if (needed > remaining) {
-                core.info(`Context limit reached before including chunk ${index + 1}/${totalChunks} of ${file.relativePath}. Consider increasing max-repo-characters.`);
-                outOfSpace = true;
-                break;
-            }
-            segments.push(header, snippet);
-            remaining -= needed;
-            addedChunks += 1;
-        }
-        if (addedChunks > 0) {
-            included.push(file);
-        }
-        if (outOfSpace) {
+    for (const chunk of chunks) {
+        const header = `FILE: ${chunk.file.relativePath} (chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks})\n`;
+        const snippet = `${chunk.content}\n\n`;
+        const needed = header.length + snippet.length;
+        if (needed > remaining) {
+            core.info(`Context limit reached before including chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} of ${chunk.file.relativePath}. Consider increasing max-repo-characters.`);
             break;
+        }
+        segments.push(header, snippet);
+        remaining -= needed;
+        if (!includedSet.has(chunk.file.relativePath)) {
+            includedSet.add(chunk.file.relativePath);
+            included.push(chunk.file);
         }
     }
     return {
@@ -36885,16 +36928,141 @@ function buildRepositoryContext(options) {
         includedFiles: included,
     };
 }
-function chunkContent(content, size) {
-    if (content.length <= size) {
-        return [content];
+
+
+/***/ }),
+
+/***/ 9305:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
     }
-    const chunks = [];
-    for (let i = 0; i < content.length; i += size) {
-        chunks.push(content.slice(i, i + size));
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmbeddingsClient = void 0;
+exports.cosineSimilarity = cosineSimilarity;
+const core = __importStar(__nccwpck_require__(7484));
+const openai_1 = __importDefault(__nccwpck_require__(2583));
+class EmbeddingsClient {
+    constructor(apiKey, model) {
+        this.client = new openai_1.default({ apiKey });
+        this.model = model;
     }
-    return chunks;
+    async embedText(text) {
+        const response = await this.client.embeddings.create({
+            model: this.model,
+            input: text,
+        });
+        const vector = response.data[0]?.embedding;
+        if (!vector) {
+            throw new Error('Failed to generate embedding.');
+        }
+        return vector;
+    }
+    async embedTexts(texts) {
+        const vectors = [];
+        for (const text of texts) {
+            try {
+                const vector = await this.embedText(text);
+                vectors.push(vector);
+            }
+            catch (error) {
+                core.warning(`Embedding failed, falling back on sequential order: ${error.message}`);
+                throw error;
+            }
+        }
+        return vectors;
+    }
 }
+exports.EmbeddingsClient = EmbeddingsClient;
+function cosineSimilarity(a, b) {
+    if (a.length !== b.length) {
+        throw new Error('Embedding dimensions do not match.');
+    }
+    let dot = 0;
+    let magA = 0;
+    let magB = 0;
+    for (let i = 0; i < a.length; i += 1) {
+        dot += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+    }
+    if (magA === 0 || magB === 0) {
+        return 0;
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+
+/***/ }),
+
+/***/ 5660:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmbeddingsRanker = void 0;
+const embeddings_1 = __nccwpck_require__(9305);
+class EmbeddingsRanker {
+    constructor(client, chunks, chunkEmbeddings, maxChunks) {
+        this.client = client;
+        this.chunks = chunks;
+        this.chunkEmbeddings = chunkEmbeddings;
+        this.maxChunks = maxChunks;
+    }
+    static async build(options) {
+        const client = new embeddings_1.EmbeddingsClient(options.apiKey, options.settings.model);
+        const chunkEmbeddings = await client.embedTexts(options.chunks.map((chunk) => chunk.content));
+        return new EmbeddingsRanker(client, options.chunks, chunkEmbeddings, options.settings.maxChunksPerPrompt);
+    }
+    async rankChunks(promptText) {
+        const promptEmbedding = await this.client.embedText(promptText);
+        const scored = this.chunkEmbeddings.map((vector, index) => ({
+            chunk: this.chunks[index],
+            score: (0, embeddings_1.cosineSimilarity)(vector, promptEmbedding),
+        }));
+        scored.sort((a, b) => b.score - a.score);
+        const limited = this.maxChunks ? scored.slice(0, this.maxChunks) : scored;
+        return limited.map((entry) => entry.chunk);
+    }
+}
+exports.EmbeddingsRanker = EmbeddingsRanker;
 
 
 /***/ }),
@@ -37388,7 +37556,9 @@ exports.runAction = runAction;
 const path_1 = __importDefault(__nccwpck_require__(6928));
 const core = __importStar(__nccwpck_require__(7484));
 const inputs_1 = __nccwpck_require__(9423);
+const chunker_1 = __nccwpck_require__(837);
 const contextBuilder_1 = __nccwpck_require__(4769);
+const embeddingsRanker_1 = __nccwpck_require__(5660);
 const openaiClient_1 = __nccwpck_require__(3234);
 const prompts_1 = __nccwpck_require__(3800);
 const repoScanner_1 = __nccwpck_require__(7377);
@@ -37417,18 +37587,40 @@ async function runAction() {
         if (!repoFiles.length) {
             core.warning('No repository files collected for context. The AI will only see the prompts.');
         }
-        const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)({
-            files: repoFiles,
-            maxCharacters: config.maxRepoCharacters,
-        });
-        core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
+        const repoChunks = (0, chunker_1.createFileChunks)(repoFiles, config.contextChunkSize);
+        core.info(`Prepared ${repoChunks.length} repository chunks for context building.`);
+        let embeddingsRanker;
+        if (config.embeddings?.enabled) {
+            try {
+                embeddingsRanker = await embeddingsRanker_1.EmbeddingsRanker.build({
+                    apiKey: config.openaiApiKey,
+                    settings: config.embeddings,
+                    chunks: repoChunks,
+                });
+                core.info('Embeddings enabled: ranking chunks per prompt.');
+            }
+            catch (error) {
+                core.warning(`Failed to initialize embeddings ranker, falling back to sequential chunks: ${error.message}`);
+                embeddingsRanker = undefined;
+            }
+        }
         const openaiClient = new openaiClient_1.OpenAIClient(config.openaiApiKey);
         const publishers = (0, publishers_1.createPublishers)(config);
         await Promise.all(publishers.map((publisher) => publisher.prepare()));
         const promptResults = [];
+        const summaryIncludedFiles = new Set();
         for (const prompt of prompts) {
             core.startGroup(`Processing prompt ${prompt.relativePath}`);
             try {
+                const chunkOrder = embeddingsRanker
+                    ? await rankChunksSafely(embeddingsRanker, prompt.content, repoChunks)
+                    : repoChunks;
+                const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)({
+                    chunks: chunkOrder,
+                    maxCharacters: config.maxRepoCharacters,
+                });
+                includedFiles.forEach((file) => summaryIncludedFiles.add(file.relativePath));
+                core.info(`Context for ${prompt.relativePath}: ${includedFiles.length} file(s), ${contextText.length} chars.`);
                 const response = await openaiClient.analyzePrompt({
                     model: config.openaiModel,
                     promptName: prompt.relativePath,
@@ -37461,7 +37653,7 @@ async function runAction() {
         for (const publisher of publishers) {
             await publisher.finalize(summary);
         }
-        const summaryBuilder = core.summary.addHeading('DocGen AI run').addRaw(`Processed ${prompts.length} prompt(s).\nIncluded ${includedFiles.length} repo file(s) in context.`);
+        const summaryBuilder = core.summary.addHeading('DocGen AI run').addRaw(`Processed ${prompts.length} prompt(s).\nIncluded ${summaryIncludedFiles.size} unique repo file(s) across contexts.`);
         if (promptResults.length) {
             summaryBuilder.addList(promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`));
         }
@@ -37469,6 +37661,15 @@ async function runAction() {
     }
     catch (error) {
         core.setFailed(error.message);
+    }
+}
+async function rankChunksSafely(ranker, promptContent, fallback) {
+    try {
+        return await ranker.rankChunks(promptContent);
+    }
+    catch (error) {
+        core.warning(`Failed to rank chunks for prompt, using sequential order: ${error.message}`);
+        return fallback;
     }
 }
 

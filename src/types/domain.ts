@@ -10,6 +10,7 @@ export interface ActionInputs {
   excludePatterns: string[];
   maxFileSizeBytes: number;
   maxRepoCharacters: number;
+  contextChunkSize: number;
   temperature: number;
   branchName: string;
   baseBranch: string;
@@ -22,6 +23,7 @@ export interface ActionInputs {
   runId: number;
   runAttempt: number;
   gitPublisherEnabled: boolean;
+  embeddings?: EmbeddingsSettings;
   confluence?: ConfluenceSettings;
 }
 
@@ -61,4 +63,17 @@ export interface ConfluenceSettings {
   apiToken: string;
   spaceKey?: string;
   pageMap: Record<string, string>;
+}
+
+export interface EmbeddingsSettings {
+  enabled: boolean;
+  model: string;
+  maxChunksPerPrompt?: number;
+}
+
+export interface RepoChunk {
+  file: RepositoryFile;
+  chunkIndex: number;
+  totalChunks: number;
+  content: string;
 }

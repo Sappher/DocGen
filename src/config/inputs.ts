@@ -132,6 +132,11 @@ export function getActionInputs(): ActionInputs {
     1_000_000,
   );
 
+  const contextChunkSize = parseNumber(
+    coalesceInput('context-chunk-size', 'CONTEXT_CHUNK_SIZE'),
+    4_000,
+  );
+
   const temperatureRaw = coalesceInput('temperature', 'OPENAI_TEMPERATURE');
   const parsedTemp = Number(temperatureRaw);
   const temperature = Number.isFinite(parsedTemp)
@@ -163,6 +168,22 @@ export function getActionInputs(): ActionInputs {
   }
 
   const [repositoryOwner, repositoryName] = repoFullName.split('/', 2);
+
+  const enableEmbeddings = coalesceBooleanInput('enable-embeddings', 'ENABLE_EMBEDDINGS', false);
+  let embeddingsConfig: ActionInputs['embeddings'];
+  if (enableEmbeddings) {
+    const embeddingsModel =
+      coalesceInput('embeddings-model', 'EMBEDDINGS_MODEL') ||
+      process.env.EMBEDDINGS_MODEL ||
+      'text-embedding-3-large';
+    const maxChunksRaw = coalesceInput('max-embeddings-chunks', 'MAX_EMBEDDINGS_CHUNKS');
+    const maxChunks = maxChunksRaw ? parseNumber(maxChunksRaw, 0) : undefined;
+    embeddingsConfig = {
+      enabled: true,
+      model: embeddingsModel,
+      maxChunksPerPrompt: maxChunks,
+    };
+  }
 
   const enableConfluence = coalesceBooleanInput('enable-confluence', 'ENABLE_CONFLUENCE', false);
   let confluenceConfig: ConfluenceSettings | undefined;
@@ -227,6 +248,7 @@ export function getActionInputs(): ActionInputs {
     excludePatterns,
     maxFileSizeBytes,
     maxRepoCharacters,
+    contextChunkSize,
     temperature,
     branchName,
     baseBranch,
@@ -239,6 +261,7 @@ export function getActionInputs(): ActionInputs {
     runId,
     runAttempt,
     gitPublisherEnabled,
+    embeddings: embeddingsConfig,
     confluence: confluenceConfig,
   };
 }

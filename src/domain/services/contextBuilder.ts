@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 
-import { RepositoryFile } from '../../types/domain';
+import { RepoChunk, RepositoryFile } from '../../types/domain';
 
 export interface RepoContextResult {
   contextText: string;
@@ -8,51 +8,37 @@ export interface RepoContextResult {
 }
 
 export interface ContextBuilderOptions {
-  files: RepositoryFile[];
+  chunks: RepoChunk[];
   maxCharacters: number;
-  chunkSize?: number;
 }
 
-const DEFAULT_CHUNK_SIZE = 4_000;
-
 export function buildRepositoryContext(options: ContextBuilderOptions): RepoContextResult {
-  const { files, maxCharacters, chunkSize = DEFAULT_CHUNK_SIZE } = options;
+  const { chunks, maxCharacters } = options;
   const included: RepositoryFile[] = [];
+  const includedSet = new Set<string>();
   let remaining = maxCharacters;
   const segments: string[] = [];
-  let outOfSpace = false;
 
-  for (const file of files) {
-    const chunks = chunkContent(file.content, chunkSize);
-    const totalChunks = chunks.length;
-    let addedChunks = 0;
-
-    for (let index = 0; index < totalChunks; index += 1) {
-      const chunk = chunks[index];
-      const header = `FILE: ${file.relativePath} (chunk ${index + 1}/${totalChunks})\n`;
-      const snippet = `${chunk}\n\n`;
-      const needed = header.length + snippet.length;
-      if (needed > remaining) {
-        core.info(
-          `Context limit reached before including chunk ${index + 1}/${totalChunks} of ${
-            file.relativePath
-          }. Consider increasing max-repo-characters.`,
-        );
-        outOfSpace = true;
-        break;
-      }
-
-      segments.push(header, snippet);
-      remaining -= needed;
-      addedChunks += 1;
-    }
-
-    if (addedChunks > 0) {
-      included.push(file);
-    }
-
-    if (outOfSpace) {
+  for (const chunk of chunks) {
+    const header = `FILE: ${chunk.file.relativePath} (chunk ${chunk.chunkIndex + 1}/${
+      chunk.totalChunks
+    })\n`;
+    const snippet = `${chunk.content}\n\n`;
+    const needed = header.length + snippet.length;
+    if (needed > remaining) {
+      core.info(
+        `Context limit reached before including chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} of ${
+          chunk.file.relativePath
+        }. Consider increasing max-repo-characters.`,
+      );
       break;
+    }
+
+    segments.push(header, snippet);
+    remaining -= needed;
+    if (!includedSet.has(chunk.file.relativePath)) {
+      includedSet.add(chunk.file.relativePath);
+      included.push(chunk.file);
     }
   }
 
@@ -60,15 +46,4 @@ export function buildRepositoryContext(options: ContextBuilderOptions): RepoCont
     contextText: segments.join(''),
     includedFiles: included,
   };
-}
-
-function chunkContent(content: string, size: number): string[] {
-  if (content.length <= size) {
-    return [content];
-  }
-  const chunks: string[] = [];
-  for (let i = 0; i < content.length; i += size) {
-    chunks.push(content.slice(i, i + size));
-  }
-  return chunks;
 }

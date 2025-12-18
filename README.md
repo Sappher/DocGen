@@ -58,6 +58,7 @@ jobs:
 | `exclude-patterns` |  | Newline-separated patterns (gitignore style) to skip when building the repo context. |
 | `max-file-size-bytes` |  | Maximum individual file size to include (defaults to `750000`). |
 | `max-repo-characters` |  | Maximum combined characters of repo context sent to the model (defaults to `1000000`). |
+| `context-chunk-size` |  | Approximate characters per repository chunk before embeddings/ranking (defaults to `4000`). |
 | `temperature` |  | Sampling temperature passed to OpenAI (defaults to `0`). |
 | `branch-name` |  | Branch to push results to. Defaults to `docgen/run-<runId>-<attempt>`. |
 | `base-branch` |  | Base branch for the PR (defaults to the triggering ref). |
@@ -65,6 +66,9 @@ jobs:
 | `dry-run` |  | When `true`, skip git pushes and PR creation while still writing files locally. |
 | `enable-git` |  | Set to `true` to allow DocGen to commit files and open a PR in the current repo. |
 | `enable-confluence` |  | Set to `true` to push generated outputs to Confluence in addition to the PR. |
+| `enable-embeddings` |  | Set to `true` to rank repository chunks per prompt using OpenAI embeddings. |
+| `embeddings-model` |  | Embeddings model (defaults to `text-embedding-3-large` when enabled). |
+| `max-embeddings-chunks` |  | Optional cap on the number of top-ranked chunks per prompt. |
 | `confluence-base-url` |  | Base URL to your Confluence site (e.g., `https://example.atlassian.net/wiki/`). Required when Confluence publishing is enabled. |
 | `confluence-email` / `confluence-api-token` |  | Email + PAT used for Confluence REST authentication. |
 | `confluence-space-key` |  | Optional space key override if the target pages should be forced into a specific space. |
@@ -92,6 +96,10 @@ When `enable-confluence: true`, DocGen publishes AI outputs directly to Confluen
 - Optional `confluence-space-key` if you want to override the destination space (otherwise the page's existing space is used).
 
 On each run, the action updates the mapped page by incrementing the version and replacing the body with the generated Markdown converted to Confluence storage format.
+
+## Embeddings (optional)
+
+When `enable-embeddings: true`, DocGen generates OpenAI embeddings for each repository chunk and ranks them per prompt so the model receives the most relevant code first. You can override the embeddings model via `embeddings-model` and limit the ranked chunks with `max-embeddings-chunks`. If embeddings initialization fails, DocGen automatically falls back to the default sequential chunk order.
 
 ## Development
 
