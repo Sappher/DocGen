@@ -129,7 +129,7 @@ export function getActionInputs(): ActionInputs {
 
   const maxRepoCharacters = parseNumber(
     coalesceInput('max-repo-characters', 'MAX_REPO_CHARACTERS'),
-    400_000,
+    1_000_000,
   );
 
   const temperatureRaw = coalesceInput('temperature', 'OPENAI_TEMPERATURE');
@@ -138,7 +138,7 @@ export function getActionInputs(): ActionInputs {
     ? Math.min(Math.max(parsedTemp, 0), 2)
     : 0;
 
-  const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-4.1-mini';
+  const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-5-mini';
 
   const branchNameInput = coalesceInput('branch-name', 'BRANCH_NAME');
   const runId = context.runId ?? Date.now();

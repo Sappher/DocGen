@@ -36713,13 +36713,13 @@ function getActionInputs() {
         }
     }
     const maxFileSizeBytes = parseNumber(coalesceInput('max-file-size-bytes', 'MAX_FILE_SIZE_BYTES'), 750000);
-    const maxRepoCharacters = parseNumber(coalesceInput('max-repo-characters', 'MAX_REPO_CHARACTERS'), 400000);
+    const maxRepoCharacters = parseNumber(coalesceInput('max-repo-characters', 'MAX_REPO_CHARACTERS'), 1000000);
     const temperatureRaw = coalesceInput('temperature', 'OPENAI_TEMPERATURE');
     const parsedTemp = Number(temperatureRaw);
     const temperature = Number.isFinite(parsedTemp)
         ? Math.min(Math.max(parsedTemp, 0), 2)
         : 0;
-    const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-4.1-mini';
+    const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-5-mini';
     const branchNameInput = coalesceInput('branch-name', 'BRANCH_NAME');
     const runId = github_1.context.runId ?? Date.now();
     const runAttempt = github_1.context.runAttempt ?? 1;
