@@ -40,39 +40,39 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-> **Note:** Always provide `openai-api-key` and `github-token` via secrets. The action also respects the same values from environment variables for compatibility with workflows that prefer `env` assignments.
+> **Note:** Always provide `openai-api-key` and `github-token` via secrets. The action also respects the same values from environment variables for compatibility with workflows that prefer `env` assignments. You can omit GITHUB_TOKEN if you run the action directly from Github action, as the token is automatically injected by Github.
 >
-> **GitHub permissions:** Ensure the repository’s *Settings → Actions → General → Workflow permissions* is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
+> **GitHub permissions:** Ensure the repository’s _Settings → Actions → General → Workflow permissions_ is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
 >
 > **Publishers:** At least one publisher must be enabled. Set `enable-git: true` (as above) or enable Confluence; otherwise the action exits early with an error reminding you to enable GitHub publishing.
 
 ## Inputs
 
-| Input | Required | Description |
-| --- | --- | --- |
-| `openai-api-key` | ✅ | OpenAI API key used for model calls. Also read from `OPENAI_API_KEY` env. |
-| `github-token` | ✅ | Token used for Git and PR operations. Defaults to `secrets.GITHUB_TOKEN`. |
-| `prompts-folder` |  | Path to the folder containing prompt `.md` files. Defaults to `prompts`. |
-| `output-folder` |  | Destination for generated outputs. Defaults to `generated-docs`. |
-| `openai-model` |  | OpenAI model name (e.g., `gpt-5-mini`). |
-| `exclude-patterns` |  | Newline-separated patterns (gitignore style) to skip when building the repo context. |
-| `max-file-size-bytes` |  | Maximum individual file size to include (defaults to `750000`). |
-| `max-repo-characters` |  | Maximum combined characters of repo context sent to the model (defaults to `1000000`). |
-| `context-chunk-size` |  | Approximate characters per repository chunk before embeddings/ranking (defaults to `4000`). |
-| `temperature` |  | Sampling temperature passed to OpenAI (defaults to `0`). |
-| `branch-name` |  | Branch to push results to. Defaults to `docgen/run-<runId>-<attempt>`. |
-| `base-branch` |  | Base branch for the PR (defaults to the triggering ref). |
-| `pr-title` / `pr-body` |  | Customize PR metadata. |
-| `dry-run` |  | When `true`, skip git pushes and PR creation while still writing files locally. |
-| `enable-git` |  | Set to `true` to allow DocGen to commit files and open a PR in the current repo. |
-| `enable-confluence` |  | Set to `true` to push generated outputs to Confluence in addition to the PR. |
-| `enable-embeddings` |  | Set to `true` to rank repository chunks per prompt using OpenAI embeddings. |
-| `embeddings-model` |  | Embeddings model (defaults to `text-embedding-3-large` when enabled). |
-| `max-embeddings-chunks` |  | Optional cap on the number of top-ranked chunks per prompt. |
-| `confluence-base-url` |  | Base URL to your Confluence site (e.g., `https://example.atlassian.net/wiki/`). Required when Confluence publishing is enabled. |
-| `confluence-email` / `confluence-api-token` |  | Email + PAT used for Confluence REST authentication. |
-| `confluence-space-key` |  | Optional space key override if the target pages should be forced into a specific space. |
-| `confluence-page-map` |  | JSON object or newline-separated `prompt/path.md=PAGE_ID` pairs defining which prompt maps to which Confluence page. Required when Confluence publishing is enabled. |
+| Input                                       | Required | Description                                                                                                                                                          |
+| ------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openai-api-key`                            | ✅       | OpenAI API key used for model calls. Also read from `OPENAI_API_KEY` env.                                                                                            |
+| `github-token`                              | ✅       | Token used for Git and PR operations. Defaults to `secrets.GITHUB_TOKEN`.                                                                                            |
+| `prompts-folder`                            |          | Path to the folder containing prompt `.md` files. Defaults to `prompts`.                                                                                             |
+| `output-folder`                             |          | Destination for generated outputs. Defaults to `generated-docs`.                                                                                                     |
+| `openai-model`                              |          | OpenAI model name (e.g., `gpt-5-mini`).                                                                                                                              |
+| `exclude-patterns`                          |          | Newline-separated patterns (gitignore style) to skip when building the repo context.                                                                                 |
+| `max-file-size-bytes`                       |          | Maximum individual file size to include (defaults to `750000`).                                                                                                      |
+| `max-repo-characters`                       |          | Maximum combined characters of repo context sent to the model (defaults to `1000000`).                                                                               |
+| `context-chunk-size`                        |          | Approximate characters per repository chunk before embeddings/ranking (defaults to `4000`).                                                                          |
+| `temperature`                               |          | Sampling temperature passed to OpenAI (defaults to `0`).                                                                                                             |
+| `branch-name`                               |          | Branch to push results to. Defaults to `docgen/run-<runId>-<attempt>`.                                                                                               |
+| `base-branch`                               |          | Base branch for the PR (defaults to the triggering ref).                                                                                                             |
+| `pr-title` / `pr-body`                      |          | Customize PR metadata.                                                                                                                                               |
+| `dry-run`                                   |          | When `true`, skip git pushes and PR creation while still writing files locally.                                                                                      |
+| `enable-git`                                |          | Set to `true` to allow DocGen to commit files and open a PR in the current repo.                                                                                     |
+| `enable-confluence`                         |          | Set to `true` to push generated outputs to Confluence in addition to the PR.                                                                                         |
+| `enable-embeddings`                         |          | Set to `true` to rank repository chunks per prompt using OpenAI embeddings.                                                                                          |
+| `embeddings-model`                          |          | Embeddings model (defaults to `text-embedding-3-large` when enabled).                                                                                                |
+| `max-embeddings-chunks`                     |          | Optional cap on the number of top-ranked chunks per prompt.                                                                                                          |
+| `confluence-base-url`                       |          | Base URL to your Confluence site (e.g., `https://example.atlassian.net/wiki/`). Required when Confluence publishing is enabled.                                      |
+| `confluence-email` / `confluence-api-token` |          | Email + PAT used for Confluence REST authentication.                                                                                                                 |
+| `confluence-space-key`                      |          | Optional space key override if the target pages should be forced into a specific space.                                                                              |
+| `confluence-page-map`                       |          | JSON object or newline-separated `prompt/path.md=PAGE_ID` pairs defining which prompt maps to which Confluence page. Required when Confluence publishing is enabled. |
 
 ## Prompts and Outputs
 
@@ -94,6 +94,22 @@ When `enable-confluence: true`, DocGen publishes AI outputs directly to Confluen
 - `confluence-email` and `confluence-api-token`: Credentials for a PAT-enabled account.
 - `confluence-page-map`: Mapping between prompt file paths and Confluence page IDs (either JSON or newline-separated `prompt=PAGE_ID` pairs). Each prompt must have a page ID defined.
 - Optional `confluence-space-key` if you want to override the destination space (otherwise the page's existing space is used).
+- Provide the mapping between prompts and page IDs via either JSON or newline-separated pairs:
+
+  ```yaml
+  confluence-page-map: |
+    ARCHITECTURE.md=123456
+    docs/ADR.md=789012
+  ```
+
+  or
+
+  ```yaml
+  confluence-page-map: >
+    {"ARCHITECTURE.md":"123456","docs/ADR.md":"789012"}
+  ```
+
+  Paths are normalized to POSIX style, so `docs\\ADR.md` also works. If a prompt does not have a mapping, the Confluence publisher skips it.
 
 On each run, the action updates the mapped page by incrementing the version and replacing the body with the generated Markdown converted to Confluence storage format.
 
@@ -112,19 +128,3 @@ npm test
 During development you can run the compiled action locally via `node dist/index.js` after setting required env vars (`GITHUB_REPOSITORY`, `GITHUB_WORKSPACE`, etc.).
 
 Before publishing a new release tag, run `npm run build` to refresh `dist/index.js` and commit the compiled output.
-- Provide the mapping between prompts and page IDs via either JSON or newline-separated pairs:
-
-  ```yaml
-  confluence-page-map: |
-    ARCHITECTURE.md=123456
-    docs/ADR.md=789012
-  ```
-
-  or
-
-  ```yaml
-  confluence-page-map: >
-    {"ARCHITECTURE.md":"123456","docs/ADR.md":"789012"}
-  ```
-
-  Paths are normalized to POSIX style, so `docs\\ADR.md` also works. If a prompt does not have a mapping, the Confluence publisher skips it.
