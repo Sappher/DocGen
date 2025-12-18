@@ -36937,74 +36937,38 @@ function buildRepositoryContext(options) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EmbeddingsClient = void 0;
 exports.cosineSimilarity = cosineSimilarity;
-const core = __importStar(__nccwpck_require__(7484));
 const openai_1 = __importDefault(__nccwpck_require__(2583));
 class EmbeddingsClient {
-    constructor(apiKey, model) {
+    constructor(apiKey, model, batchSize = 50) {
         this.client = new openai_1.default({ apiKey });
         this.model = model;
+        this.batchSize = batchSize;
     }
     async embedText(text) {
-        const response = await this.client.embeddings.create({
-            model: this.model,
-            input: text,
-        });
-        const vector = response.data[0]?.embedding;
-        if (!vector) {
-            throw new Error('Failed to generate embedding.');
-        }
+        const [vector] = await this.embedTexts([text]);
         return vector;
     }
     async embedTexts(texts) {
         const vectors = [];
-        for (const text of texts) {
-            try {
-                const vector = await this.embedText(text);
-                vectors.push(vector);
-            }
-            catch (error) {
-                core.warning(`Embedding failed, falling back on sequential order: ${error.message}`);
-                throw error;
-            }
+        for (let i = 0; i < texts.length; i += this.batchSize) {
+            const batch = texts.slice(i, i + this.batchSize);
+            const response = await this.client.embeddings.create({
+                model: this.model,
+                input: batch,
+            });
+            response.data.forEach((item) => {
+                const embedding = item.embedding;
+                if (!embedding) {
+                    throw new Error('Received empty embedding from OpenAI.');
+                }
+                vectors.push(embedding);
+            });
         }
         return vectors;
     }
