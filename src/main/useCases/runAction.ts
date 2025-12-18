@@ -41,7 +41,10 @@ export async function runAction(): Promise<void> {
       core.warning('No repository files collected for context. The AI will only see the prompts.');
     }
 
-    const { contextText, includedFiles } = buildRepositoryContext(repoFiles, config.maxRepoCharacters);
+    const { contextText, includedFiles } = buildRepositoryContext({
+      files: repoFiles,
+      maxCharacters: config.maxRepoCharacters,
+    });
     core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
 
     const openaiClient = new OpenAIClient(config.openaiApiKey);

@@ -36848,26 +36848,52 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildRepositoryContext = buildRepositoryContext;
 const core = __importStar(__nccwpck_require__(7484));
-function buildRepositoryContext(files, maxCharacters) {
+const DEFAULT_CHUNK_SIZE = 4000;
+function buildRepositoryContext(options) {
+    const { files, maxCharacters, chunkSize = DEFAULT_CHUNK_SIZE } = options;
     const included = [];
     let remaining = maxCharacters;
     const segments = [];
+    let outOfSpace = false;
     for (const file of files) {
-        const header = `FILE: ${file.relativePath}\n`;
-        const snippet = `${file.content}\n\n`;
-        const needed = header.length + snippet.length;
-        if (needed > remaining) {
-            core.info(`Context limit reached before including ${file.relativePath}. Consider increasing max-repo-characters.`);
+        const chunks = chunkContent(file.content, chunkSize);
+        const totalChunks = chunks.length;
+        let addedChunks = 0;
+        for (let index = 0; index < totalChunks; index += 1) {
+            const chunk = chunks[index];
+            const header = `FILE: ${file.relativePath} (chunk ${index + 1}/${totalChunks})\n`;
+            const snippet = `${chunk}\n\n`;
+            const needed = header.length + snippet.length;
+            if (needed > remaining) {
+                core.info(`Context limit reached before including chunk ${index + 1}/${totalChunks} of ${file.relativePath}. Consider increasing max-repo-characters.`);
+                outOfSpace = true;
+                break;
+            }
+            segments.push(header, snippet);
+            remaining -= needed;
+            addedChunks += 1;
+        }
+        if (addedChunks > 0) {
+            included.push(file);
+        }
+        if (outOfSpace) {
             break;
         }
-        segments.push(header, snippet);
-        remaining -= needed;
-        included.push(file);
     }
     return {
         contextText: segments.join(''),
         includedFiles: included,
     };
+}
+function chunkContent(content, size) {
+    if (content.length <= size) {
+        return [content];
+    }
+    const chunks = [];
+    for (let i = 0; i < content.length; i += size) {
+        chunks.push(content.slice(i, i + size));
+    }
+    return chunks;
 }
 
 
@@ -37391,7 +37417,10 @@ async function runAction() {
         if (!repoFiles.length) {
             core.warning('No repository files collected for context. The AI will only see the prompts.');
         }
-        const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)(repoFiles, config.maxRepoCharacters);
+        const { contextText, includedFiles } = (0, contextBuilder_1.buildRepositoryContext)({
+            files: repoFiles,
+            maxCharacters: config.maxRepoCharacters,
+        });
         core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
         const openaiClient = new openaiClient_1.OpenAIClient(config.openaiApiKey);
         const publishers = (0, publishers_1.createPublishers)(config);
