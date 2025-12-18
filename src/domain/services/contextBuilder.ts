@@ -1,34 +1,45 @@
 import * as core from '@actions/core';
 
-import { RepositoryFile } from '../../types/domain';
+import { RepoChunk, RepositoryFile } from '../../types/domain';
 
 export interface RepoContextResult {
   contextText: string;
   includedFiles: RepositoryFile[];
 }
 
-export function buildRepositoryContext(
-  files: RepositoryFile[],
-  maxCharacters: number,
-): RepoContextResult {
+export interface ContextBuilderOptions {
+  chunks: RepoChunk[];
+  maxCharacters: number;
+}
+
+export function buildRepositoryContext(options: ContextBuilderOptions): RepoContextResult {
+  const { chunks, maxCharacters } = options;
   const included: RepositoryFile[] = [];
+  const includedSet = new Set<string>();
   let remaining = maxCharacters;
   const segments: string[] = [];
 
-  for (const file of files) {
-    const header = `FILE: ${file.relativePath}\n`;
-    const snippet = `${file.content}\n\n`;
+  for (const chunk of chunks) {
+    const header = `FILE: ${chunk.file.relativePath} (chunk ${chunk.chunkIndex + 1}/${
+      chunk.totalChunks
+    })\n`;
+    const snippet = `${chunk.content}\n\n`;
     const needed = header.length + snippet.length;
     if (needed > remaining) {
       core.info(
-        `Context limit reached before including ${file.relativePath}. Consider increasing max-repo-characters.`,
+        `Context limit reached before including chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} of ${
+          chunk.file.relativePath
+        }. Consider increasing max-repo-characters.`,
       );
       break;
     }
 
     segments.push(header, snippet);
     remaining -= needed;
-    included.push(file);
+    if (!includedSet.has(chunk.file.relativePath)) {
+      includedSet.add(chunk.file.relativePath);
+      included.push(chunk.file);
+    }
   }
 
   return {

@@ -55,6 +55,8 @@ describe('getActionInputs', () => {
     expect(inputs.openaiApiKey).toBe('test-key');
     expect(inputs.githubToken).toBe('gh-token');
     expect(inputs.gitPublisherEnabled).toBe(true);
+    expect(inputs.contextChunkSize).toBeGreaterThan(0);
+    expect(inputs.embeddings).toBeUndefined();
   });
 
   it('does not require github token when git publisher disabled', () => {
@@ -79,5 +81,21 @@ describe('getActionInputs', () => {
     process.env.GITHUB_WORKSPACE = '/tmp/workspace';
 
     expect(() => getActionInputs()).toThrow('Missing GitHub token');
+  });
+
+  it('configures embeddings when enabled', () => {
+    mockCoreInputs({
+      'openai-api-key': 'test-key',
+      'enable-embeddings': 'true',
+      'embeddings-model': 'text-embedding-3-small',
+      'max-embeddings-chunks': '25',
+    });
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_WORKSPACE = '/tmp/workspace';
+
+    const inputs = getActionInputs();
+    expect(inputs.embeddings?.enabled).toBe(true);
+    expect(inputs.embeddings?.model).toBe('text-embedding-3-small');
+    expect(inputs.embeddings?.maxChunksPerPrompt).toBe(25);
   });
 });

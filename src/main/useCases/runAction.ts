@@ -3,12 +3,14 @@ import path from 'path';
 import * as core from '@actions/core';
 
 import { getActionInputs } from '../../config/inputs';
+import { createFileChunks } from '../../domain/services/chunker';
 import { buildRepositoryContext } from '../../domain/services/contextBuilder';
+import { EmbeddingsRanker } from '../../domain/services/embeddingsRanker';
 import { OpenAIClient } from '../../domain/services/openaiClient';
 import { loadPromptFiles } from '../../domain/services/prompts';
 import { collectRepositoryFiles } from '../../domain/services/repoScanner';
 import { createPublishers } from '../../publishers';
-import { PromptResult, RunSummary } from '../../types/domain';
+import { PromptResult, RepoChunk, RunSummary } from '../../types/domain';
 
 export async function runAction(): Promise<void> {
   try {
@@ -41,18 +43,51 @@ export async function runAction(): Promise<void> {
       core.warning('No repository files collected for context. The AI will only see the prompts.');
     }
 
-    const { contextText, includedFiles } = buildRepositoryContext(repoFiles, config.maxRepoCharacters);
-    core.info(`Including ${includedFiles.length} files within the model context (${contextText.length} chars).`);
+    const repoChunks = createFileChunks(repoFiles, config.contextChunkSize);
+    core.info(`Prepared ${repoChunks.length} repository chunks for context building.`);
+
+    let embeddingsRanker: EmbeddingsRanker | undefined;
+    if (config.embeddings?.enabled) {
+      try {
+        embeddingsRanker = await EmbeddingsRanker.build({
+          apiKey: config.openaiApiKey,
+          settings: config.embeddings,
+          chunks: repoChunks,
+        });
+        core.info('Embeddings enabled: ranking chunks per prompt.');
+      } catch (error) {
+        core.warning(
+          `Failed to initialize embeddings ranker, falling back to sequential chunks: ${
+            (error as Error).message
+          }`,
+        );
+        embeddingsRanker = undefined;
+      }
+    }
 
     const openaiClient = new OpenAIClient(config.openaiApiKey);
     const publishers = createPublishers(config);
     await Promise.all(publishers.map((publisher) => publisher.prepare()));
 
     const promptResults: PromptResult[] = [];
+    const summaryIncludedFiles = new Set<string>();
 
     for (const prompt of prompts) {
       core.startGroup(`Processing prompt ${prompt.relativePath}`);
       try {
+        const chunkOrder = embeddingsRanker
+          ? await rankChunksSafely(embeddingsRanker, prompt.content, repoChunks)
+          : repoChunks;
+
+        const { contextText, includedFiles } = buildRepositoryContext({
+          chunks: chunkOrder,
+          maxCharacters: config.maxRepoCharacters,
+        });
+        includedFiles.forEach((file) => summaryIncludedFiles.add(file.relativePath));
+        core.info(
+          `Context for ${prompt.relativePath}: ${includedFiles.length} file(s), ${contextText.length} chars.`,
+        );
+
         const response = await openaiClient.analyzePrompt({
           model: config.openaiModel,
           promptName: prompt.relativePath,
@@ -90,7 +125,7 @@ export async function runAction(): Promise<void> {
     }
 
     const summaryBuilder = core.summary.addHeading('DocGen AI run').addRaw(
-      `Processed ${prompts.length} prompt(s).\nIncluded ${includedFiles.length} repo file(s) in context.`,
+      `Processed ${prompts.length} prompt(s).\nIncluded ${summaryIncludedFiles.size} unique repo file(s) across contexts.`,
     );
     if (promptResults.length) {
       summaryBuilder.addList(
@@ -100,5 +135,20 @@ export async function runAction(): Promise<void> {
     await summaryBuilder.write();
   } catch (error) {
     core.setFailed((error as Error).message);
+  }
+}
+
+async function rankChunksSafely(
+  ranker: EmbeddingsRanker,
+  promptContent: string,
+  fallback: RepoChunk[],
+): Promise<RepoChunk[]> {
+  try {
+    return await ranker.rankChunks(promptContent);
+  } catch (error) {
+    core.warning(
+      `Failed to rank chunks for prompt, using sequential order: ${(error as Error).message}`,
+    );
+    return fallback;
   }
 }

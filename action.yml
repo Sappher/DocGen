@@ -34,6 +34,10 @@ inputs:
     description: 'Maximum pooled characters from repository files added to the model context'
     required: false
     default: '1000000'
+  context-chunk-size:
+    description: 'Approximate character size for each repository chunk'
+    required: false
+    default: '4000'
   temperature:
     description: 'OpenAI sampling temperature'
     required: false
@@ -76,6 +80,16 @@ inputs:
     required: false
   confluence-page-map:
     description: 'Mapping from prompt files to Confluence page IDs (JSON or newline key=value pairs)'
+    required: false
+  enable-embeddings:
+    description: 'Use OpenAI embeddings to rank repository chunks before building context'
+    required: false
+    default: 'false'
+  embeddings-model:
+    description: 'Embeddings model identifier (e.g., text-embedding-3-large)'
+    required: false
+  max-embeddings-chunks:
+    description: 'Optional hard cap on the number of top-ranked chunks per prompt when embeddings are enabled'
     required: false
 runs:
   using: 'node20'
