@@ -13,6 +13,11 @@ import { PromptResult, RunSummary } from '../../types/domain';
 export async function runAction(): Promise<void> {
   try {
     const config = getActionInputs();
+    if (!config.gitPublisherEnabled && !(config.confluence?.enabled)) {
+      throw new Error(
+        "No publishers enabled. Enable at least one, e.g., set 'enable-git: true' in the workflow inputs.",
+      );
+    }
     core.info(`Using prompts from ${config.promptsFolderInput} and outputs to ${config.outputFolderInput}`);
 
     const prompts = await loadPromptFiles(config.promptsFolder);

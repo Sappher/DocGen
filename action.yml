@@ -54,6 +54,10 @@ inputs:
     description: 'If true, skip git pushes and PR creation'
     required: false
     default: 'false'
+  enable-git:
+    description: 'Enable writing files and opening PRs in the repository'
+    required: false
+    default: 'false'
   enable-confluence:
     description: 'Enable publishing generated outputs to Confluence'
     required: false

@@ -66,6 +66,7 @@ beforeEach(async () => {
       repositoryName: 'repo',
       runId: 1,
       runAttempt: 1,
+      gitPublisherEnabled: true,
     };
   });
 

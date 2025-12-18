@@ -36691,13 +36691,14 @@ function getActionInputs() {
     const outputFolderInput = coalesceInput('output-folder', 'OUTPUT_FOLDER') || 'generated-docs';
     const promptsFolder = path_1.default.resolve(workspacePath, promptsFolderInput);
     const outputFolder = path_1.default.resolve(workspacePath, outputFolderInput);
+    const gitPublisherEnabled = coalesceBooleanInput('enable-git', 'ENABLE_GIT', false);
     const openaiApiKey = coalesceInput('openai-api-key', 'OPENAI_API_KEY') || process.env.OPENAI_API_KEY || '';
     if (!openaiApiKey) {
         throw new Error('Missing OpenAI API key. Provide it via the openai-api-key input or env.');
     }
     const githubToken = coalesceInput('github-token', 'GITHUB_TOKEN') || process.env.GITHUB_TOKEN || '';
-    if (!githubToken) {
-        throw new Error('Missing GitHub token. Provide it via the github-token input or env.');
+    if (gitPublisherEnabled && !githubToken) {
+        throw new Error('Missing GitHub token. Provide it via the github-token input or env when enable-git is true.');
     }
     const excludePatterns = core
         .getMultilineInput('exclude-patterns', { trimWhitespace: true })
@@ -36798,6 +36799,7 @@ function getActionInputs() {
         repositoryName,
         runId,
         runAttempt,
+        gitPublisherEnabled,
         confluence: confluenceConfig,
     };
 }
@@ -37368,6 +37370,9 @@ const publishers_1 = __nccwpck_require__(8483);
 async function runAction() {
     try {
         const config = (0, inputs_1.getActionInputs)();
+        if (!config.gitPublisherEnabled && !(config.confluence?.enabled)) {
+            throw new Error("No publishers enabled. Enable at least one, e.g., set 'enable-git: true' in the workflow inputs.");
+        }
         core.info(`Using prompts from ${config.promptsFolderInput} and outputs to ${config.outputFolderInput}`);
         const prompts = await (0, prompts_1.loadPromptFiles)(config.promptsFolder);
         if (!prompts.length) {
@@ -37710,7 +37715,10 @@ exports.createPublishers = createPublishers;
 const confluence_1 = __nccwpck_require__(6281);
 const git_1 = __nccwpck_require__(1271);
 function createPublishers(config) {
-    const publishers = [new git_1.GitPublisher(config)];
+    const publishers = [];
+    if (config.gitPublisherEnabled) {
+        publishers.push(new git_1.GitPublisher(config));
+    }
     if (config.confluence?.enabled) {
         publishers.push(new confluence_1.ConfluencePublisher(config.confluence));
     }
