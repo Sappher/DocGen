@@ -5,7 +5,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 
 import { checkoutBranch, configureGitUser, hasChanges, pushBranch, runGitCommand } from '../git';
-import { ActionInputs, PromptResult, Publisher, RunSummary } from '../types';
+import { ActionInputs, PromptResult, Publisher, RunSummary } from '../types/domain';
 
 export class GitPublisher implements Publisher {
   private readonly config: ActionInputs;

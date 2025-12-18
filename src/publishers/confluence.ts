@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import { marked } from 'marked';
 import fetch, { RequestInit } from 'node-fetch';
 
-import { ConfluenceSettings, PromptResult, Publisher, RunSummary } from '../types';
+import { ConfluenceSettings, PromptResult, Publisher, RunSummary } from '../types/domain';
 
 interface ConfluencePageResponse {
   id: string;
@@ -36,20 +36,16 @@ export class ConfluencePublisher implements Publisher {
   }
 
   async finalize(_summary: RunSummary): Promise<void> {
-    // Nothing to do; per-prompt updates are handled during publishPromptResult
+    // no-op
   }
 
   private async updatePage(pageId: string, result: PromptResult): Promise<void> {
     try {
-      const existing = (await this.confluenceRequest(
-        `/rest/api/content/${pageId}?expand=version,space`,
-      )) as ConfluencePageResponse;
+      const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`)) as ConfluencePageResponse;
       const version = (existing?.version?.number ?? 0) + 1;
       const title = existing?.title || result.prompt.relativePath;
       const pageType = existing?.type || 'page';
       const spaceKey = this.settings.spaceKey || existing?.space?.key;
-
-      const bodyHtml = this.renderMarkdown(result.content);
 
       const payload = {
         id: pageId,
@@ -58,18 +54,17 @@ export class ConfluencePublisher implements Publisher {
         space: spaceKey ? { key: spaceKey } : undefined,
         body: {
           storage: {
-            value: bodyHtml,
+            value: this.renderMarkdown(result.content),
             representation: 'storage',
           },
         },
         version: { number: version },
       };
 
-      await this.confluenceRequest(`/rest/api/content/${pageId}`, {
+      await this.request(`/rest/api/content/${pageId}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
-
       core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
     } catch (error) {
       throw new Error(
@@ -84,7 +79,7 @@ export class ConfluencePublisher implements Publisher {
     return (marked.parse(markdown) as string).trim();
   }
 
-  private async confluenceRequest(pathname: string, init?: RequestInit): Promise<unknown> {
+  private async request(pathname: string, init?: RequestInit): Promise<unknown> {
     const url = this.buildUrl(pathname);
     const response = await fetch(url, {
       ...init,

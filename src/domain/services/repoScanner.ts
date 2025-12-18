@@ -5,7 +5,7 @@ import * as core from '@actions/core';
 import ignore from 'ignore';
 import { isBinary } from 'istextorbinary';
 
-import { RepositoryFile } from './types';
+import { RepositoryFile } from '../../types/domain';
 
 const DEFAULT_EXCLUDES = [
   '.git/',

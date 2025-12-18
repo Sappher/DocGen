@@ -3,7 +3,7 @@ import path from 'path';
 import * as core from '@actions/core';
 import { context } from '@actions/github';
 
-import { ActionInputs, ConfluenceSettings } from './types';
+import { ActionInputs, ConfluenceSettings } from '../types/domain';
 
 function coalesceInput(name: string, envName?: string): string {
   const actionValue = core.getInput(name);

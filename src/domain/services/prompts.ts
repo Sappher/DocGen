@@ -3,7 +3,7 @@ import path from 'path';
 
 import * as core from '@actions/core';
 
-import { PromptFile } from './types';
+import { PromptFile } from '../../types/domain';
 
 async function walkDirectory(root: string, current: string, results: PromptFile[]): Promise<void> {
   const currentPath = current ? path.join(root, current) : root;

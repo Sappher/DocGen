@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseConfluencePageMapInput } from '../src/config';
+import { parseConfluencePageMapInput } from '../src/config/inputs';
 
 describe('parseConfluencePageMapInput', () => {
   it('parses newline separated entries', () => {

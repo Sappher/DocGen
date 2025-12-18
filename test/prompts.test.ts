@@ -4,7 +4,7 @@ import path from 'path';
 
 import { describe, expect, it } from 'vitest';
 
-import { loadPromptFiles } from '../src/prompts';
+import { loadPromptFiles } from '../src/domain/services/prompts';
 
 describe('loadPromptFiles', () => {
   it('reads markdown files recursively', async () => {
