@@ -1,3 +1,5 @@
+import * as core from '@actions/core';
+
 import { EmbeddingsSettings, RepoChunk } from '../../types/domain';
 
 import { EmbeddingsClient, cosineSimilarity } from './embeddings';
@@ -19,6 +21,7 @@ export class EmbeddingsRanker {
   static async build(options: EmbeddingsRankerOptions): Promise<EmbeddingsRanker> {
     const client = new EmbeddingsClient(options.apiKey, options.settings.model);
     const chunkEmbeddings = await client.embedTexts(options.chunks.map((chunk) => chunk.content));
+    core.info(`Generated embeddings for ${options.chunks.length} chunk(s).`);
     return new EmbeddingsRanker(client, options.chunks, chunkEmbeddings, options.settings.maxChunksPerPrompt);
   }
 
