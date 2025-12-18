@@ -143,7 +143,7 @@ export function getActionInputs(): ActionInputs {
     ? Math.min(Math.max(parsedTemp, 0), 2)
     : 0;
 
-  const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-5-mini';
+  const model = coalesceInput('openai-model', 'OPENAI_MODEL') || 'gpt-4o-mini';
 
   const branchNameInput = coalesceInput('branch-name', 'BRANCH_NAME');
   const runId = context.runId ?? Date.now();
