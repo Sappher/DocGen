@@ -60,6 +60,11 @@ jobs:
 | `base-branch` |  | Base branch for the PR (defaults to the triggering ref). |
 | `pr-title` / `pr-body` |  | Customize PR metadata. |
 | `dry-run` |  | When `true`, skip git pushes and PR creation while still writing files locally. |
+| `enable-confluence` |  | Set to `true` to push generated outputs to Confluence in addition to the PR. |
+| `confluence-base-url` |  | Base URL to your Confluence site (e.g., `https://example.atlassian.net/wiki/`). Required when Confluence publishing is enabled. |
+| `confluence-email` / `confluence-api-token` |  | Email + PAT used for Confluence REST authentication. |
+| `confluence-space-key` |  | Optional space key override if the target pages should be forced into a specific space. |
+| `confluence-page-map` |  | JSON object or newline-separated `prompt/path.md=PAGE_ID` pairs defining which prompt maps to which Confluence page. Required when Confluence publishing is enabled. |
 
 ## Prompts and Outputs
 
@@ -73,6 +78,17 @@ jobs:
 - Maximum file size and overall character budget are configurable inputs.
 - Users can provide custom exclusion patterns to omit sensitive files or large directories.
 
+## Confluence Publisher
+
+When `enable-confluence: true`, DocGen publishes AI outputs directly to Confluence in addition to opening the PR. Supply the following inputs (usually via workflow `with:` or repository/environment secrets):
+
+- `confluence-base-url`: Full site URL, typically `https://<site>.atlassian.net/wiki/`.
+- `confluence-email` and `confluence-api-token`: Credentials for a PAT-enabled account.
+- `confluence-page-map`: Mapping between prompt file paths and Confluence page IDs (either JSON or newline-separated `prompt=PAGE_ID` pairs). Each prompt must have a page ID defined.
+- Optional `confluence-space-key` if you want to override the destination space (otherwise the page's existing space is used).
+
+On each run, the action updates the mapped page by incrementing the version and replacing the body with the generated Markdown converted to Confluence storage format.
+
 ## Development
 
 ```bash
@@ -84,3 +100,19 @@ npm test
 During development you can run the compiled action locally via `node dist/index.js` after setting required env vars (`GITHUB_REPOSITORY`, `GITHUB_WORKSPACE`, etc.).
 
 Before publishing a new release tag, run `npm run build` to refresh `dist/index.js` and commit the compiled output.
+- Provide the mapping between prompts and page IDs via either JSON or newline-separated pairs:
+
+  ```yaml
+  confluence-page-map: |
+    ARCHITECTURE.md=123456
+    docs/ADR.md=789012
+  ```
+
+  or
+
+  ```yaml
+  confluence-page-map: >
+    {"ARCHITECTURE.md":"123456","docs/ADR.md":"789012"}
+  ```
+
+  Paths are normalized to POSIX style, so `docs\\ADR.md` also works. If a prompt does not have a mapping, the Confluence publisher skips it.

@@ -54,6 +54,25 @@ inputs:
     description: 'If true, skip git pushes and PR creation'
     required: false
     default: 'false'
+  enable-confluence:
+    description: 'Enable publishing generated outputs to Confluence'
+    required: false
+    default: 'false'
+  confluence-base-url:
+    description: 'Base URL of the Confluence site (e.g., https://example.atlassian.net/wiki/)'
+    required: false
+  confluence-email:
+    description: 'Confluence account email used with the API token'
+    required: false
+  confluence-api-token:
+    description: 'Confluence API token (PAT) for authentication'
+    required: false
+  confluence-space-key:
+    description: 'Optional Confluence space key when updating pages'
+    required: false
+  confluence-page-map:
+    description: 'Mapping from prompt files to Confluence page IDs (JSON or newline key=value pairs)'
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'

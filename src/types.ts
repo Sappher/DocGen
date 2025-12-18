@@ -21,6 +21,7 @@ export interface ActionInputs {
   repositoryName: string;
   runId: number;
   runAttempt: number;
+  confluence?: ConfluenceSettings;
 }
 
 export interface PromptFile {
@@ -50,4 +51,13 @@ export interface Publisher {
   prepare(): Promise<void>;
   publishPromptResult(result: PromptResult): Promise<void>;
   finalize(summary: RunSummary): Promise<void>;
+}
+
+export interface ConfluenceSettings {
+  enabled: boolean;
+  baseUrl: string;
+  email: string;
+  apiToken: string;
+  spaceKey?: string;
+  pageMap: Record<string, string>;
 }

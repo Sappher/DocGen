@@ -6,6 +6,7 @@ import { getActionInputs } from './config';
 import { buildRepositoryContext } from './contextBuilder';
 import { OpenAIClient } from './openaiClient';
 import { loadPromptFiles } from './prompts';
+import { ConfluencePublisher } from './publishers/confluencePublisher';
 import { GitPublisher } from './publishers/gitPublisher';
 import { collectRepositoryFiles } from './repoScanner';
 import { PromptResult, Publisher, RunSummary } from './types';
@@ -41,6 +42,9 @@ async function run(): Promise<void> {
 
     const openaiClient = new OpenAIClient(config.openaiApiKey);
     const publishers: Publisher[] = [new GitPublisher(config)];
+    if (config.confluence?.enabled) {
+      publishers.push(new ConfluencePublisher(config.confluence));
+    }
     await Promise.all(publishers.map((publisher) => publisher.prepare()));
 
     const promptResults: PromptResult[] = [];
