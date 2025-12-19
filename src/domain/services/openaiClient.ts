@@ -7,6 +7,7 @@ interface AnalyzePromptOptions {
   repoContext: string;
   promptContent: string;
   temperature: number;
+  systemPrompt?: string;
 }
 
 const RETRY_ATTEMPTS = 3;
@@ -32,7 +33,9 @@ export class OpenAIClient {
               content: [
                 {
                   type: 'input_text',
-                  text: 'You are an assistant that analyzes source code repositories and produces concise, accurate documentation or analysis based on user prompts. Always cite file names when referencing code.',
+                  text:
+                    options.systemPrompt ??
+                    'You are an assistant that analyzes source code repositories and produces concise, accurate documentation or analysis based on user prompts. Always cite file names when referencing code.',
                 },
               ],
             },

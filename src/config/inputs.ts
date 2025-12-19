@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import * as core from '@actions/core';
@@ -169,6 +170,13 @@ export function getActionInputs(): ActionInputs {
 
   const [repositoryOwner, repositoryName] = repoFullName.split('/', 2);
 
+  const systemPromptFileInput = coalesceInput('system-prompt-file', 'SYSTEM_PROMPT_FILE');
+  let systemPrompt: string | undefined;
+  if (systemPromptFileInput) {
+    const systemPromptPath = path.resolve(workspacePath, systemPromptFileInput);
+    systemPrompt = loadSystemPrompt(systemPromptPath);
+  }
+
   const enableEmbeddings = coalesceBooleanInput('enable-embeddings', 'ENABLE_EMBEDDINGS', false);
   let embeddingsConfig: ActionInputs['embeddings'];
   if (enableEmbeddings) {
@@ -260,8 +268,20 @@ export function getActionInputs(): ActionInputs {
     repositoryName,
     runId,
     runAttempt,
+    systemPrompt,
     gitPublisherEnabled,
     embeddings: embeddingsConfig,
     confluence: confluenceConfig,
   };
+}
+
+function loadSystemPrompt(filePath: string): string {
+  if (!fs.existsSync(filePath)) {
+    throw new Error('file not found');
+  }
+  const content = fs.readFileSync(filePath, 'utf8').trim();
+  if (!content) {
+    throw new Error('file is empty');
+  }
+  return content;
 }

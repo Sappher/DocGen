@@ -22,6 +22,7 @@ export interface ActionInputs {
   repositoryName: string;
   runId: number;
   runAttempt: number;
+  systemPrompt?: string;
   gitPublisherEnabled: boolean;
   embeddings?: EmbeddingsSettings;
   confluence?: ConfluenceSettings;

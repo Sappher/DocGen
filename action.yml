@@ -91,6 +91,9 @@ inputs:
   max-embeddings-chunks:
     description: 'Optional hard cap on the number of top-ranked chunks per prompt when embeddings are enabled'
     required: false
+  system-prompt-file:
+    description: 'Optional path to a Markdown/ text file whose contents become the system prompt'
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'

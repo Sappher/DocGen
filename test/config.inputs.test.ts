@@ -1,3 +1,7 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import { getActionInputs, parseConfluencePageMapInput } from '../src/config/inputs';
@@ -97,5 +101,22 @@ describe('getActionInputs', () => {
     expect(inputs.embeddings?.enabled).toBe(true);
     expect(inputs.embeddings?.model).toBe('text-embedding-3-small');
     expect(inputs.embeddings?.maxChunksPerPrompt).toBe(25);
+  });
+
+  it('loads system prompt from file', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docgen-system-'));
+    const tmpFile = path.join(tmpDir, 'system.md');
+    fs.writeFileSync(tmpFile, 'System instructions');
+
+    mockCoreInputs({
+      'openai-api-key': 'test-key',
+      'system-prompt-file': path.relative(tmpDir, tmpFile),
+    });
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_WORKSPACE = tmpDir;
+
+    const inputs = getActionInputs();
+    expect(inputs.systemPrompt).toBe('System instructions');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });

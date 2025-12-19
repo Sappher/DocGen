@@ -36613,6 +36613,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseConfluencePageMapInput = parseConfluencePageMapInput;
 exports.getActionInputs = getActionInputs;
+const fs_1 = __importDefault(__nccwpck_require__(9896));
 const path_1 = __importDefault(__nccwpck_require__(6928));
 const core = __importStar(__nccwpck_require__(7484));
 const github_1 = __nccwpck_require__(3228);
@@ -36736,6 +36737,12 @@ function getActionInputs() {
         throw new Error('GITHUB_REPOSITORY env is required when running inside GitHub Actions.');
     }
     const [repositoryOwner, repositoryName] = repoFullName.split('/', 2);
+    const systemPromptFileInput = coalesceInput('system-prompt-file', 'SYSTEM_PROMPT_FILE');
+    let systemPrompt;
+    if (systemPromptFileInput) {
+        const systemPromptPath = path_1.default.resolve(workspacePath, systemPromptFileInput);
+        systemPrompt = loadSystemPrompt(systemPromptPath);
+    }
     const enableEmbeddings = coalesceBooleanInput('enable-embeddings', 'ENABLE_EMBEDDINGS', false);
     let embeddingsConfig;
     if (enableEmbeddings) {
@@ -36815,10 +36822,21 @@ function getActionInputs() {
         repositoryName,
         runId,
         runAttempt,
+        systemPrompt,
         gitPublisherEnabled,
         embeddings: embeddingsConfig,
         confluence: confluenceConfig,
     };
+}
+function loadSystemPrompt(filePath) {
+    if (!fs_1.default.existsSync(filePath)) {
+        throw new Error('file not found');
+    }
+    const content = fs_1.default.readFileSync(filePath, 'utf8').trim();
+    if (!content) {
+        throw new Error('file is empty');
+    }
+    return content;
 }
 
 
@@ -37129,7 +37147,8 @@ class OpenAIClient {
                             content: [
                                 {
                                     type: 'input_text',
-                                    text: 'You are an assistant that analyzes source code repositories and produces concise, accurate documentation or analysis based on user prompts. Always cite file names when referencing code.',
+                                    text: options.systemPrompt ??
+                                        'You are an assistant that analyzes source code repositories and produces concise, accurate documentation or analysis based on user prompts. Always cite file names when referencing code.',
                                 },
                             ],
                         },
@@ -37628,6 +37647,7 @@ async function runAction() {
                     repoContext: contextText,
                     promptContent: prompt.content,
                     temperature: config.temperature,
+                    systemPrompt: config.systemPrompt,
                 });
                 const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
                 if (!parts.length) {
