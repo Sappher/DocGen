@@ -98,6 +98,7 @@ export async function runAction(): Promise<void> {
           repoContext: contextText,
           promptContent: prompt.content,
           temperature: config.temperature,
+          systemPrompt: config.systemPrompt,
         });
 
         const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
