@@ -66,6 +66,36 @@ describe('ConfluencePublisher', () => {
     await publisher.publishPromptResult(dummyResult('doc.md'));
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('warns and continues when a mapped page update fails', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      text: () =>
+        Promise.resolve(
+          '{"statusCode":404,"message":"No content found with id : 4264067083"}',
+        ),
+    });
+
+    const publisher = new ConfluencePublisher({
+      enabled: true,
+      baseUrl: 'https://example.atlassian.net/wiki/',
+      email: 'user@example.com',
+      apiToken: 'token',
+      pageMap: { 'doc.md': '4264067083' },
+    });
+
+    await expect(publisher.publishPromptResult(dummyResult('doc.md'))).resolves.toBeUndefined();
+    await publisher.finalize({ promptResults: [] });
+
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to update Confluence page 4264067083 for doc.md'),
+    );
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Confluence publishing completed with 1 warning'),
+    );
+  });
 });
 
 function dummyResult(relativePath: string): PromptResult {

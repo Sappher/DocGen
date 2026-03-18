@@ -77,7 +77,6 @@ describe('CodexCliClient', () => {
       ]),
       expect.objectContaining({
         env: expect.objectContaining({
-          OPENAI_API_KEY: 'secret-key',
           CODEX_HOME: expect.any(String),
         }),
         ignoreReturnCode: true,
@@ -87,6 +86,9 @@ describe('CodexCliClient', () => {
 
     const prompt = getExecOutputMock.mock.calls[1][2].input.toString('utf8');
     expect(prompt).toContain('Prefer concise output.');
+    expect(prompt).toContain('Read the current target document first if it already exists');
+    expect(prompt).toContain('Base statements on files you actually inspect.');
+    expect(prompt).toContain('Do not include process narration, status updates, or commentary about your steps.');
     expect(prompt).toContain('Prompt file: docs/ARCHITECTURE.md');
     expect(prompt).toContain('Target output file: docs/ARCHITECTURE.md');
     expect(prompt).toContain('Describe the system architecture.');
@@ -161,5 +163,28 @@ describe('CodexCliClient', () => {
     await expect(
       client.prepare(),
     ).rejects.toThrow('Failed to authenticate Codex CLI with the provided API key');
+  });
+
+  it('fails with a clear message on authentication errors during exec', async () => {
+    getExecOutputMock.mockResolvedValue({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'unexpected status 401 Unauthorized: Missing bearer or basic authentication in header',
+    });
+
+    const client = new CodexCliClient({
+      executable: 'codex',
+      sandbox: 'danger-full-access',
+      configOverrides: [],
+    });
+
+    await expect(
+      client.generateOutput({
+        workingDirectory: '/repo',
+        promptName: 'ARCHITECTURE.md',
+        promptContent: 'Explain the architecture.',
+        outputRelativePath: 'ARCHITECTURE.md',
+      }),
+    ).rejects.toThrow('Provide a valid codex-api-key or pre-authenticate the Codex CLI on the runner');
   });
 });

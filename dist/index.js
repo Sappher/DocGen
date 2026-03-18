@@ -34285,10 +34285,7 @@ function getActionInputs() {
         throw new Error('Missing GitHub token. Provide it via the github-token input or env when enable-git is true.');
     }
     const codexExecutable = coalesceInput('codex-executable', 'CODEX_EXECUTABLE') || 'codex';
-    const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') ||
-        coalesceInput('openai-api-key', 'OPENAI_API_KEY') ||
-        process.env.OPENAI_API_KEY ||
-        undefined;
+    const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') || undefined;
     const codexModel = coalesceInput('codex-model', 'CODEX_MODEL') || undefined;
     const codexProfile = coalesceInput('codex-profile', 'CODEX_PROFILE') || undefined;
     const codexSandbox = parseCodexSandboxMode(coalesceInput('codex-sandbox', 'CODEX_SANDBOX') || process.env.CODEX_SANDBOX);
@@ -34386,7 +34383,6 @@ function getActionInputs() {
         prTitle,
         prBody: prBodyTemplate,
         dryRun,
-        repoFullName,
         repositoryOwner,
         repositoryName,
         runId,
@@ -34398,11 +34394,11 @@ function getActionInputs() {
 }
 function loadSystemPrompt(filePath) {
     if (!fs_1.default.existsSync(filePath)) {
-        throw new Error('file not found');
+        throw new Error(`System prompt file not found: ${filePath}`);
     }
     const content = fs_1.default.readFileSync(filePath, 'utf8').trim();
     if (!content) {
-        throw new Error('file is empty');
+        throw new Error(`System prompt file is empty: ${filePath}`);
     }
     return content;
 }
@@ -34515,6 +34511,10 @@ class CodexCliClient {
                 ignoreReturnCode: true,
                 input: Buffer.from(buildCodexPrompt(options), 'utf8'),
             });
+            const authFailure = detectAuthFailure(execOutput.stdout, execOutput.stderr);
+            if (authFailure) {
+                throw new Error(authFailure);
+            }
             const sandboxFailure = detectSandboxFailure(execOutput.stdout, execOutput.stderr);
             if (sandboxFailure) {
                 throw new Error(buildSandboxFailureMessage(sandboxFailure, this.settings.sandbox));
@@ -34579,9 +34579,6 @@ class CodexCliClient {
         if (this.codexHomePath) {
             env.CODEX_HOME = this.codexHomePath;
         }
-        if (this.settings.apiKey) {
-            env.OPENAI_API_KEY = this.settings.apiKey;
-        }
         return env;
     }
     async readLastMessage(lastMessagePath) {
@@ -34600,9 +34597,15 @@ function buildCodexPrompt(options) {
         [
             'You are generating a repository documentation artifact for an automated workflow.',
             'Inspect the repository directly from the current working directory as needed.',
+            'Read the current target document first if it already exists, and update it rather than rewriting from scratch unless a full rewrite is clearly necessary.',
+            'Preserve correct and useful existing content when possible.',
+            'Base statements on files you actually inspect.',
+            'When describing important implementation details, reference the relevant repository file paths in the document.',
+            'If a detail cannot be verified from inspected files, say so briefly instead of guessing.',
             'Do not modify repository files.',
             'Return only the final Markdown content that should be written to the target output file.',
             'Do not wrap the full answer in code fences.',
+            'Do not include process narration, status updates, or commentary about your steps.',
         ].join('\n'),
         `Prompt file: ${options.promptName}`,
         `Target output file: ${options.outputRelativePath}`,
@@ -34632,6 +34635,21 @@ function detectSandboxFailure(stdout, stderr) {
         const match = combined.match(pattern);
         if (match) {
             return match[0].trim();
+        }
+    }
+    return undefined;
+}
+function detectAuthFailure(stdout, stderr) {
+    const combined = `${stdout}\n${stderr}`;
+    const patterns = [
+        /401 Unauthorized:[^\n]*/i,
+        /Missing bearer or basic authentication in header[^\n]*/i,
+        /invalid_api_key[^\n]*/i,
+    ];
+    for (const pattern of patterns) {
+        const match = combined.match(pattern);
+        if (match) {
+            return `Codex authentication failed (${match[0].trim()}). Provide a valid codex-api-key or pre-authenticate the Codex CLI on the runner.`;
         }
     }
     return undefined;
@@ -35003,6 +35021,7 @@ const node_fetch_1 = __importDefault(__nccwpck_require__(6705));
 class ConfluencePublisher {
     constructor(settings) {
         this.settings = settings;
+        this.failedPages = [];
         this.authHeader = `Basic ${Buffer.from(`${settings.email}:${settings.apiToken}`).toString('base64')}`;
     }
     async prepare() {
@@ -35014,40 +35033,45 @@ class ConfluencePublisher {
             core.warning(`No Confluence mapping found for ${result.prompt.relativePath}; skipping Confluence publish.`);
             return;
         }
-        await this.updatePage(pageId, result);
-    }
-    async finalize(_summary) {
-        // no-op
-    }
-    async updatePage(pageId, result) {
         try {
-            const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`));
-            const version = (existing?.version?.number ?? 0) + 1;
-            const title = existing?.title || result.prompt.relativePath;
-            const pageType = existing?.type || 'page';
-            const spaceKey = this.settings.spaceKey || existing?.space?.key;
-            const payload = {
-                id: pageId,
-                type: pageType,
-                title,
-                space: spaceKey ? { key: spaceKey } : undefined,
-                body: {
-                    storage: {
-                        value: this.renderMarkdown(result.content),
-                        representation: 'storage',
-                    },
-                },
-                version: { number: version },
-            };
-            await this.request(`/rest/api/content/${pageId}`, {
-                method: 'PUT',
-                body: JSON.stringify(payload),
-            });
-            core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
+            await this.updatePage(pageId, result);
         }
         catch (error) {
-            throw new Error(`Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${error.message}`);
+            const message = `Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${error.message}`;
+            this.failedPages.push(message);
+            core.warning(message);
         }
+    }
+    async finalize(_summary) {
+        if (!this.failedPages.length) {
+            return;
+        }
+        core.warning(`Confluence publishing completed with ${this.failedPages.length} warning(s). Review the log output for the affected page mappings.`);
+    }
+    async updatePage(pageId, result) {
+        const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`));
+        const version = (existing?.version?.number ?? 0) + 1;
+        const title = existing?.title || result.prompt.relativePath;
+        const pageType = existing?.type || 'page';
+        const spaceKey = this.settings.spaceKey || existing?.space?.key;
+        const payload = {
+            id: pageId,
+            type: pageType,
+            title,
+            space: spaceKey ? { key: spaceKey } : undefined,
+            body: {
+                storage: {
+                    value: this.renderMarkdown(result.content),
+                    representation: 'storage',
+                },
+            },
+            version: { number: version },
+        };
+        await this.request(`/rest/api/content/${pageId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+        core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
     }
     renderMarkdown(markdown) {
         return marked_1.marked.parse(markdown).trim();

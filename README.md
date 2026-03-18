@@ -13,7 +13,7 @@ Instead of pre-building a large repository context and sending it to a single mo
 
 ## Usage
 
-DocGen expects the `codex` CLI to already be installed and authenticated on the runner. If you use a custom path, set `codex-executable`.
+DocGen expects the `codex` CLI to already be installed on the runner. If you use a custom path, set `codex-executable`.
 
 ```yaml
 name: DocGen
@@ -39,15 +39,12 @@ jobs:
           enable-git: true
           prompts-folder: gen/prompts
           output-folder: gen/docs
-          codex-api-key: ${{ secrets.OPENAI_API_KEY }}
+          codex-api-key: ${{ secrets.CODEX_API_KEY }}
           codex-model: gpt-5-codex
           github-token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-> **Codex CLI:** The runner must have a working `codex` binary. For CI, the simplest setup is to pass `codex-api-key` so DocGen can run `codex login --with-api-key` automatically. Existing `openai-api-key` / `OPENAI_API_KEY` values are also accepted as a compatibility fallback.
+> **Codex CLI:** The runner must have a working `codex` binary. For CI, pass `codex-api-key` so DocGen can run `codex login --with-api-key` automatically. If you omit it, pre-authenticate the runner with `codex login`.
 >
 > **Sandbox default:** DocGen defaults `codex-sandbox` to `danger-full-access` because some GitHub Actions runners fail Codex's internal Linux sandbox setup (`bwrap ... Operation not permitted`) even for read-only inspection. If you prefer stricter isolation and your runner supports it, override `codex-sandbox` explicitly.
 >
@@ -62,8 +59,7 @@ jobs:
 | `prompts-folder`                            |          | Path to the folder containing prompt `.md` files. Defaults to `prompts`.                                                                                            |
 | `output-folder`                             |          | Destination for generated outputs. Defaults to `generated-docs`.                                                                                                     |
 | `codex-executable`                          |          | Codex CLI executable name or absolute path. Defaults to `codex`.                                                                                                     |
-| `codex-api-key`                             |          | Optional API key used to authenticate the Codex CLI via `codex login --with-api-key` before prompt execution.                                                        |
-| `openai-api-key`                            |          | Deprecated alias for `codex-api-key`, kept for compatibility with older workflows and `OPENAI_API_KEY`.                                                              |
+| `codex-api-key`                             |          | Optional API key used to authenticate the Codex CLI via `codex login --with-api-key` before prompt execution.                                                       |
 | `codex-model`                               |          | Optional model override passed to `codex exec --model`.                                                                                                              |
 | `codex-profile`                             |          | Optional profile passed to `codex exec --profile`.                                                                                                                   |
 | `codex-sandbox`                             |          | Sandbox mode passed to `codex exec --sandbox`. Defaults to `danger-full-access`.                                                                                    |
@@ -116,6 +112,6 @@ npm run build
 npm test
 ```
 
-During development you can run the compiled action locally via `node dist/index.js` after setting required env vars such as `GITHUB_REPOSITORY` and `GITHUB_WORKSPACE`, and ensuring the `codex` CLI is installed and authenticated.
+During development you can run the compiled action locally via `node dist/index.js` after setting required env vars such as `GITHUB_REPOSITORY` and `GITHUB_WORKSPACE`, ensuring the `codex` CLI is installed, and providing `CODEX_API_KEY` if you want DocGen to authenticate Codex automatically.
 
 Before publishing a new release tag, run `npm run build` to refresh `dist/index.js` and commit the compiled output.

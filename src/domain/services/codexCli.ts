@@ -84,6 +84,10 @@ export class CodexCliClient {
         ignoreReturnCode: true,
         input: Buffer.from(buildCodexPrompt(options), 'utf8'),
       });
+      const authFailure = detectAuthFailure(execOutput.stdout, execOutput.stderr);
+      if (authFailure) {
+        throw new Error(authFailure);
+      }
       const sandboxFailure = detectSandboxFailure(execOutput.stdout, execOutput.stderr);
       if (sandboxFailure) {
         throw new Error(buildSandboxFailureMessage(sandboxFailure, this.settings.sandbox));
@@ -173,10 +177,6 @@ export class CodexCliClient {
       env.CODEX_HOME = this.codexHomePath;
     }
 
-    if (this.settings.apiKey) {
-      env.OPENAI_API_KEY = this.settings.apiKey;
-    }
-
     return env;
   }
 
@@ -197,9 +197,15 @@ function buildCodexPrompt(options: GenerateOutputOptions): string {
     [
       'You are generating a repository documentation artifact for an automated workflow.',
       'Inspect the repository directly from the current working directory as needed.',
+      'Read the current target document first if it already exists, and update it rather than rewriting from scratch unless a full rewrite is clearly necessary.',
+      'Preserve correct and useful existing content when possible.',
+      'Base statements on files you actually inspect.',
+      'When describing important implementation details, reference the relevant repository file paths in the document.',
+      'If a detail cannot be verified from inspected files, say so briefly instead of guessing.',
       'Do not modify repository files.',
       'Return only the final Markdown content that should be written to the target output file.',
       'Do not wrap the full answer in code fences.',
+      'Do not include process narration, status updates, or commentary about your steps.',
     ].join('\n'),
     `Prompt file: ${options.promptName}`,
     `Target output file: ${options.outputRelativePath}`,
@@ -235,6 +241,24 @@ function detectSandboxFailure(stdout: string, stderr: string): string | undefine
     const match = combined.match(pattern);
     if (match) {
       return match[0].trim();
+    }
+  }
+
+  return undefined;
+}
+
+function detectAuthFailure(stdout: string, stderr: string): string | undefined {
+  const combined = `${stdout}\n${stderr}`;
+  const patterns = [
+    /401 Unauthorized:[^\n]*/i,
+    /Missing bearer or basic authentication in header[^\n]*/i,
+    /invalid_api_key[^\n]*/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = combined.match(pattern);
+    if (match) {
+      return `Codex authentication failed (${match[0].trim()}). Provide a valid codex-api-key or pre-authenticate the Codex CLI on the runner.`;
     }
   }
 
