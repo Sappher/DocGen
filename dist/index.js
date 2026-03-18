@@ -34285,6 +34285,10 @@ function getActionInputs() {
         throw new Error('Missing GitHub token. Provide it via the github-token input or env when enable-git is true.');
     }
     const codexExecutable = coalesceInput('codex-executable', 'CODEX_EXECUTABLE') || 'codex';
+    const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') ||
+        coalesceInput('openai-api-key', 'OPENAI_API_KEY') ||
+        process.env.OPENAI_API_KEY ||
+        undefined;
     const codexModel = coalesceInput('codex-model', 'CODEX_MODEL') || undefined;
     const codexProfile = coalesceInput('codex-profile', 'CODEX_PROFILE') || undefined;
     const codexSandbox = parseCodexSandboxMode(coalesceInput('codex-sandbox', 'CODEX_SANDBOX') || process.env.CODEX_SANDBOX);
@@ -34370,6 +34374,7 @@ function getActionInputs() {
         outputFolderInput,
         codex: {
             executable: codexExecutable,
+            apiKey: codexApiKey,
             model: codexModel,
             profile: codexProfile,
             sandbox: codexSandbox,
@@ -34457,8 +34462,34 @@ const RETRY_ATTEMPTS = 3;
 class CodexCliClient {
     constructor(settings) {
         this.settings = settings;
+        this.prepared = false;
+    }
+    async prepare() {
+        if (this.prepared) {
+            return;
+        }
+        this.codexHomePath = await promises_1.default.mkdtemp(path_1.default.join(os_1.default.tmpdir(), 'docgen-codex-home-'));
+        try {
+            if (this.settings.apiKey) {
+                await this.loginWithApiKey(this.settings.apiKey);
+            }
+            this.prepared = true;
+        }
+        catch (error) {
+            await this.cleanup();
+            throw error;
+        }
+    }
+    async cleanup() {
+        if (!this.codexHomePath) {
+            return;
+        }
+        await promises_1.default.rm(this.codexHomePath, { recursive: true, force: true });
+        this.codexHomePath = undefined;
+        this.prepared = false;
     }
     async generateOutput(options) {
+        await this.prepare();
         for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt += 1) {
             try {
                 return await this.runOnce(options);
@@ -34480,6 +34511,7 @@ class CodexCliClient {
         try {
             const args = this.buildArgs(options.workingDirectory, lastMessagePath);
             const execOutput = await (0, exec_1.getExecOutput)(this.settings.executable, args, {
+                env: this.buildEnvironment(),
                 ignoreReturnCode: true,
                 input: Buffer.from(buildCodexPrompt(options), 'utf8'),
             });
@@ -34521,6 +34553,32 @@ class CodexCliClient {
         }
         args.push('-');
         return args;
+    }
+    async loginWithApiKey(apiKey) {
+        const loginResult = await (0, exec_1.getExecOutput)(this.settings.executable, ['login', '--with-api-key'], {
+            env: this.buildEnvironment(),
+            ignoreReturnCode: true,
+            input: Buffer.from(`${apiKey}\n`, 'utf8'),
+        });
+        if (loginResult.exitCode !== 0) {
+            const details = summarizeProcessError(loginResult.stderr || loginResult.stdout);
+            throw new Error(`Failed to authenticate Codex CLI with the provided API key${details ? `: ${details}` : ''}`);
+        }
+    }
+    buildEnvironment() {
+        const env = {};
+        for (const [key, value] of Object.entries(process.env)) {
+            if (typeof value === 'string') {
+                env[key] = value;
+            }
+        }
+        if (this.codexHomePath) {
+            env.CODEX_HOME = this.codexHomePath;
+        }
+        if (this.settings.apiKey) {
+            env.OPENAI_API_KEY = this.settings.apiKey;
+        }
+        return env;
     }
     async readLastMessage(lastMessagePath) {
         try {
@@ -34811,51 +34869,57 @@ async function runAction() {
             throw new Error('No prompts were discovered. Please add .md files to the prompt folder.');
         }
         const codexClient = new codexCli_1.CodexCliClient(config.codex);
-        const publishers = (0, publishers_1.createPublishers)(config);
-        await Promise.all(publishers.map((publisher) => publisher.prepare()));
-        const promptResults = [];
-        for (const prompt of prompts) {
-            core.startGroup(`Processing prompt ${prompt.relativePath}`);
-            try {
-                const response = await codexClient.generateOutput({
-                    workingDirectory: config.workspacePath,
-                    promptName: prompt.relativePath,
-                    promptContent: prompt.content,
-                    outputRelativePath: prompt.relativePath,
-                    systemPrompt: config.systemPrompt,
-                });
-                const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
-                if (!parts.length) {
-                    parts.push(path_1.default.basename(prompt.absolutePath));
+        try {
+            await codexClient.prepare();
+            const publishers = (0, publishers_1.createPublishers)(config);
+            await Promise.all(publishers.map((publisher) => publisher.prepare()));
+            const promptResults = [];
+            for (const prompt of prompts) {
+                core.startGroup(`Processing prompt ${prompt.relativePath}`);
+                try {
+                    const response = await codexClient.generateOutput({
+                        workingDirectory: config.workspacePath,
+                        promptName: prompt.relativePath,
+                        promptContent: prompt.content,
+                        outputRelativePath: prompt.relativePath,
+                        systemPrompt: config.systemPrompt,
+                    });
+                    const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
+                    if (!parts.length) {
+                        parts.push(path_1.default.basename(prompt.absolutePath));
+                    }
+                    const outputRelativePath = parts.join('/');
+                    const outputAbsolutePath = path_1.default.join(config.outputFolder, ...parts);
+                    const result = {
+                        prompt,
+                        outputRelativePath,
+                        outputAbsolutePath,
+                        content: response,
+                    };
+                    promptResults.push(result);
+                    for (const publisher of publishers) {
+                        await publisher.publishPromptResult(result);
+                    }
                 }
-                const outputRelativePath = parts.join('/');
-                const outputAbsolutePath = path_1.default.join(config.outputFolder, ...parts);
-                const result = {
-                    prompt,
-                    outputRelativePath,
-                    outputAbsolutePath,
-                    content: response,
-                };
-                promptResults.push(result);
-                for (const publisher of publishers) {
-                    await publisher.publishPromptResult(result);
+                finally {
+                    core.endGroup();
                 }
             }
-            finally {
-                core.endGroup();
+            const summary = { promptResults };
+            for (const publisher of publishers) {
+                await publisher.finalize(summary);
             }
+            const summaryBuilder = core.summary
+                .addHeading('DocGen Codex run')
+                .addRaw(`Processed ${prompts.length} prompt(s).`);
+            if (promptResults.length) {
+                summaryBuilder.addList(promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`));
+            }
+            await summaryBuilder.write();
         }
-        const summary = { promptResults };
-        for (const publisher of publishers) {
-            await publisher.finalize(summary);
+        finally {
+            await codexClient.cleanup();
         }
-        const summaryBuilder = core.summary
-            .addHeading('DocGen Codex run')
-            .addRaw(`Processed ${prompts.length} prompt(s).`);
-        if (promptResults.length) {
-            summaryBuilder.addList(promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`));
-        }
-        await summaryBuilder.write();
     }
     catch (error) {
         core.setFailed(error.message);

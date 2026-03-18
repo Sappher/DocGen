@@ -17,6 +17,12 @@ inputs:
     description: 'Codex CLI executable or absolute path'
     required: false
     default: 'codex'
+  codex-api-key:
+    description: 'Optional API key used to run codex login --with-api-key before generation'
+    required: false
+  openai-api-key:
+    description: 'Deprecated alias for codex-api-key'
+    required: false
   codex-model:
     description: 'Optional Codex model override passed to codex exec --model'
     required: false

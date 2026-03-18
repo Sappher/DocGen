@@ -39,13 +39,15 @@ jobs:
           enable-git: true
           prompts-folder: gen/prompts
           output-folder: gen/docs
+          codex-api-key: ${{ secrets.OPENAI_API_KEY }}
           codex-model: gpt-5-codex
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-> **Codex CLI:** The runner must have a working `codex` binary and valid authentication before DocGen starts.
+> **Codex CLI:** The runner must have a working `codex` binary. For CI, the simplest setup is to pass `codex-api-key` so DocGen can run `codex login --with-api-key` automatically. Existing `openai-api-key` / `OPENAI_API_KEY` values are also accepted as a compatibility fallback.
 >
 > **GitHub permissions:** Ensure the repository’s _Settings → Actions → General → Workflow permissions_ is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
 >
@@ -58,6 +60,8 @@ jobs:
 | `prompts-folder`                            |          | Path to the folder containing prompt `.md` files. Defaults to `prompts`.                                                                                            |
 | `output-folder`                             |          | Destination for generated outputs. Defaults to `generated-docs`.                                                                                                     |
 | `codex-executable`                          |          | Codex CLI executable name or absolute path. Defaults to `codex`.                                                                                                     |
+| `codex-api-key`                             |          | Optional API key used to authenticate the Codex CLI via `codex login --with-api-key` before prompt execution.                                                        |
+| `openai-api-key`                            |          | Deprecated alias for `codex-api-key`, kept for compatibility with older workflows and `OPENAI_API_KEY`.                                                              |
 | `codex-model`                               |          | Optional model override passed to `codex exec --model`.                                                                                                              |
 | `codex-profile`                             |          | Optional profile passed to `codex exec --profile`.                                                                                                                   |
 | `codex-sandbox`                             |          | Sandbox mode passed to `codex exec --sandbox`. Defaults to `read-only`.                                                                                             |

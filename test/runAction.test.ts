@@ -6,6 +6,8 @@ import type { ActionInputs } from '../src/types/domain';
 const getActionInputsMock = vi.fn();
 const loadPromptFilesMock = vi.fn();
 const generateOutputMock = vi.fn();
+const prepareMock = vi.fn();
+const cleanupMock = vi.fn();
 
 vi.mock('../src/config/inputs', () => ({
   getActionInputs: getActionInputsMock,
@@ -14,7 +16,11 @@ vi.mock('../src/domain/services/prompts', () => ({
   loadPromptFiles: loadPromptFilesMock,
 }));
 vi.mock('../src/domain/services/codexCli', () => ({
-  CodexCliClient: vi.fn().mockImplementation(() => ({ generateOutput: generateOutputMock })),
+  CodexCliClient: vi.fn().mockImplementation(() => ({
+    prepare: prepareMock,
+    cleanup: cleanupMock,
+    generateOutput: generateOutputMock,
+  })),
 }));
 
 const { runAction } = await import('../src/main/useCases/runAction');
@@ -42,6 +48,7 @@ function minimalConfig(): ActionInputs {
     outputFolderInput: 'out',
     codex: {
       executable: 'codex',
+      apiKey: undefined,
       sandbox: 'read-only',
       configOverrides: [],
     },

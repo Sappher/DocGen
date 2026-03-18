@@ -23,6 +23,7 @@ export interface ActionInputs {
 
 export interface CodexSettings {
   executable: string;
+  apiKey?: string;
   model?: string;
   profile?: string;
   sandbox: CodexSandboxMode;

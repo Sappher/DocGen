@@ -57,6 +57,7 @@ describe('getActionInputs', () => {
     const inputs = getActionInputs();
     expect(inputs.promptsFolder).toContain('prompts');
     expect(inputs.codex.executable).toBe('codex');
+    expect(inputs.codex.apiKey).toBeUndefined();
     expect(inputs.githubToken).toBe('gh-token');
     expect(inputs.gitPublisherEnabled).toBe(true);
     expect(inputs.codex.sandbox).toBe('read-only');
@@ -87,6 +88,7 @@ describe('getActionInputs', () => {
 
   it('configures codex settings when provided', () => {
     mockCoreInputs({
+      'codex-api-key': 'codex-key',
       'codex-executable': '/usr/local/bin/codex',
       'codex-model': 'gpt-5-codex',
       'codex-profile': 'ci',
@@ -98,6 +100,7 @@ describe('getActionInputs', () => {
 
     const inputs = getActionInputs();
     expect(inputs.codex.executable).toBe('/usr/local/bin/codex');
+    expect(inputs.codex.apiKey).toBe('codex-key');
     expect(inputs.codex.model).toBe('gpt-5-codex');
     expect(inputs.codex.profile).toBe('ci');
     expect(inputs.codex.sandbox).toBe('workspace-write');
@@ -115,6 +118,17 @@ describe('getActionInputs', () => {
     process.env.GITHUB_WORKSPACE = '/tmp/workspace';
 
     expect(() => getActionInputs()).toThrow('Invalid codex-sandbox');
+  });
+
+  it('falls back to the legacy openai api key input', () => {
+    mockCoreInputs({
+      'openai-api-key': 'legacy-key',
+    });
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_WORKSPACE = '/tmp/workspace';
+
+    const inputs = getActionInputs();
+    expect(inputs.codex.apiKey).toBe('legacy-key');
   });
 
   it('loads system prompt from file', () => {

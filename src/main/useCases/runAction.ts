@@ -23,59 +23,64 @@ export async function runAction(): Promise<void> {
       throw new Error('No prompts were discovered. Please add .md files to the prompt folder.');
     }
     const codexClient = new CodexCliClient(config.codex);
-    const publishers = createPublishers(config);
-    await Promise.all(publishers.map((publisher) => publisher.prepare()));
+    try {
+      await codexClient.prepare();
+      const publishers = createPublishers(config);
+      await Promise.all(publishers.map((publisher) => publisher.prepare()));
 
-    const promptResults: PromptResult[] = [];
+      const promptResults: PromptResult[] = [];
 
-    for (const prompt of prompts) {
-      core.startGroup(`Processing prompt ${prompt.relativePath}`);
-      try {
-        const response = await codexClient.generateOutput({
-          workingDirectory: config.workspacePath,
-          promptName: prompt.relativePath,
-          promptContent: prompt.content,
-          outputRelativePath: prompt.relativePath,
-          systemPrompt: config.systemPrompt,
-        });
+      for (const prompt of prompts) {
+        core.startGroup(`Processing prompt ${prompt.relativePath}`);
+        try {
+          const response = await codexClient.generateOutput({
+            workingDirectory: config.workspacePath,
+            promptName: prompt.relativePath,
+            promptContent: prompt.content,
+            outputRelativePath: prompt.relativePath,
+            systemPrompt: config.systemPrompt,
+          });
 
-        const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
-        if (!parts.length) {
-          parts.push(path.basename(prompt.absolutePath));
+          const parts = prompt.relativePath.split(/[/\\]+/).filter(Boolean);
+          if (!parts.length) {
+            parts.push(path.basename(prompt.absolutePath));
+          }
+          const outputRelativePath = parts.join('/');
+          const outputAbsolutePath = path.join(config.outputFolder, ...parts);
+
+          const result: PromptResult = {
+            prompt,
+            outputRelativePath,
+            outputAbsolutePath,
+            content: response,
+          };
+          promptResults.push(result);
+
+          for (const publisher of publishers) {
+            await publisher.publishPromptResult(result);
+          }
+        } finally {
+          core.endGroup();
         }
-        const outputRelativePath = parts.join('/');
-        const outputAbsolutePath = path.join(config.outputFolder, ...parts);
-
-        const result: PromptResult = {
-          prompt,
-          outputRelativePath,
-          outputAbsolutePath,
-          content: response,
-        };
-        promptResults.push(result);
-
-        for (const publisher of publishers) {
-          await publisher.publishPromptResult(result);
-        }
-      } finally {
-        core.endGroup();
       }
-    }
 
-    const summary: RunSummary = { promptResults };
-    for (const publisher of publishers) {
-      await publisher.finalize(summary);
-    }
+      const summary: RunSummary = { promptResults };
+      for (const publisher of publishers) {
+        await publisher.finalize(summary);
+      }
 
-    const summaryBuilder = core.summary
-      .addHeading('DocGen Codex run')
-      .addRaw(`Processed ${prompts.length} prompt(s).`);
-    if (promptResults.length) {
-      summaryBuilder.addList(
-        promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`),
-      );
+      const summaryBuilder = core.summary
+        .addHeading('DocGen Codex run')
+        .addRaw(`Processed ${prompts.length} prompt(s).`);
+      if (promptResults.length) {
+        summaryBuilder.addList(
+          promptResults.map((result) => `${result.prompt.relativePath} -> ${result.outputRelativePath}`),
+        );
+      }
+      await summaryBuilder.write();
+    } finally {
+      await codexClient.cleanup();
     }
-    await summaryBuilder.write();
   } catch (error) {
     core.setFailed((error as Error).message);
   }
