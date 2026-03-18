@@ -35015,6 +35015,7 @@ const node_fetch_1 = __importDefault(__nccwpck_require__(6705));
 class ConfluencePublisher {
     constructor(settings) {
         this.settings = settings;
+        this.failedPages = [];
         this.authHeader = `Basic ${Buffer.from(`${settings.email}:${settings.apiToken}`).toString('base64')}`;
     }
     async prepare() {
@@ -35026,40 +35027,45 @@ class ConfluencePublisher {
             core.warning(`No Confluence mapping found for ${result.prompt.relativePath}; skipping Confluence publish.`);
             return;
         }
-        await this.updatePage(pageId, result);
-    }
-    async finalize(_summary) {
-        // no-op
-    }
-    async updatePage(pageId, result) {
         try {
-            const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`));
-            const version = (existing?.version?.number ?? 0) + 1;
-            const title = existing?.title || result.prompt.relativePath;
-            const pageType = existing?.type || 'page';
-            const spaceKey = this.settings.spaceKey || existing?.space?.key;
-            const payload = {
-                id: pageId,
-                type: pageType,
-                title,
-                space: spaceKey ? { key: spaceKey } : undefined,
-                body: {
-                    storage: {
-                        value: this.renderMarkdown(result.content),
-                        representation: 'storage',
-                    },
-                },
-                version: { number: version },
-            };
-            await this.request(`/rest/api/content/${pageId}`, {
-                method: 'PUT',
-                body: JSON.stringify(payload),
-            });
-            core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
+            await this.updatePage(pageId, result);
         }
         catch (error) {
-            throw new Error(`Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${error.message}`);
+            const message = `Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${error.message}`;
+            this.failedPages.push(message);
+            core.warning(message);
         }
+    }
+    async finalize(_summary) {
+        if (!this.failedPages.length) {
+            return;
+        }
+        core.warning(`Confluence publishing completed with ${this.failedPages.length} warning(s). Review the log output for the affected page mappings.`);
+    }
+    async updatePage(pageId, result) {
+        const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`));
+        const version = (existing?.version?.number ?? 0) + 1;
+        const title = existing?.title || result.prompt.relativePath;
+        const pageType = existing?.type || 'page';
+        const spaceKey = this.settings.spaceKey || existing?.space?.key;
+        const payload = {
+            id: pageId,
+            type: pageType,
+            title,
+            space: spaceKey ? { key: spaceKey } : undefined,
+            body: {
+                storage: {
+                    value: this.renderMarkdown(result.content),
+                    representation: 'storage',
+                },
+            },
+            version: { number: version },
+        };
+        await this.request(`/rest/api/content/${pageId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+        core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
     }
     renderMarkdown(markdown) {
         return marked_1.marked.parse(markdown).trim();

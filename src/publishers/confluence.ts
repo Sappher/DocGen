@@ -14,6 +14,7 @@ interface ConfluencePageResponse {
 
 export class ConfluencePublisher implements Publisher {
   private readonly authHeader: string;
+  private readonly failedPages: string[] = [];
 
   constructor(private readonly settings: ConfluenceSettings) {
     this.authHeader = `Basic ${Buffer.from(`${settings.email}:${settings.apiToken}`).toString('base64')}`;
@@ -32,47 +33,53 @@ export class ConfluencePublisher implements Publisher {
       return;
     }
 
-    await this.updatePage(pageId, result);
+    try {
+      await this.updatePage(pageId, result);
+    } catch (error) {
+      const message = `Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${
+        (error as Error).message
+      }`;
+      this.failedPages.push(message);
+      core.warning(message);
+    }
   }
 
   async finalize(_summary: RunSummary): Promise<void> {
-    // no-op
+    if (!this.failedPages.length) {
+      return;
+    }
+
+    core.warning(
+      `Confluence publishing completed with ${this.failedPages.length} warning(s). Review the log output for the affected page mappings.`,
+    );
   }
 
   private async updatePage(pageId: string, result: PromptResult): Promise<void> {
-    try {
-      const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`)) as ConfluencePageResponse;
-      const version = (existing?.version?.number ?? 0) + 1;
-      const title = existing?.title || result.prompt.relativePath;
-      const pageType = existing?.type || 'page';
-      const spaceKey = this.settings.spaceKey || existing?.space?.key;
+    const existing = (await this.request(`/rest/api/content/${pageId}?expand=version,space`)) as ConfluencePageResponse;
+    const version = (existing?.version?.number ?? 0) + 1;
+    const title = existing?.title || result.prompt.relativePath;
+    const pageType = existing?.type || 'page';
+    const spaceKey = this.settings.spaceKey || existing?.space?.key;
 
-      const payload = {
-        id: pageId,
-        type: pageType,
-        title,
-        space: spaceKey ? { key: spaceKey } : undefined,
-        body: {
-          storage: {
-            value: this.renderMarkdown(result.content),
-            representation: 'storage',
-          },
+    const payload = {
+      id: pageId,
+      type: pageType,
+      title,
+      space: spaceKey ? { key: spaceKey } : undefined,
+      body: {
+        storage: {
+          value: this.renderMarkdown(result.content),
+          representation: 'storage',
         },
-        version: { number: version },
-      };
+      },
+      version: { number: version },
+    };
 
-      await this.request(`/rest/api/content/${pageId}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
-      core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
-    } catch (error) {
-      throw new Error(
-        `Failed to update Confluence page ${pageId} for ${result.prompt.relativePath}: ${
-          (error as Error).message
-        }`,
-      );
-    }
+    await this.request(`/rest/api/content/${pageId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    core.info(`Updated Confluence page ${pageId} for ${result.prompt.relativePath}.`);
   }
 
   private renderMarkdown(markdown: string): string {
