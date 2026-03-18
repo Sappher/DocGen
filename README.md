@@ -49,6 +49,8 @@ jobs:
 
 > **Codex CLI:** The runner must have a working `codex` binary. For CI, the simplest setup is to pass `codex-api-key` so DocGen can run `codex login --with-api-key` automatically. Existing `openai-api-key` / `OPENAI_API_KEY` values are also accepted as a compatibility fallback.
 >
+> **Sandbox default:** DocGen defaults `codex-sandbox` to `workspace-write` because Codex usually needs to run normal repo-inspection commands during generation. If your runner requires a different setting, override `codex-sandbox` explicitly.
+>
 > **GitHub permissions:** Ensure the repository’s _Settings → Actions → General → Workflow permissions_ is set to “Read and write permissions” and “Allow GitHub Actions to create and approve pull requests.” Without that, the default `GITHUB_TOKEN` cannot open PRs.
 >
 > **Publishers:** At least one publisher must be enabled. Set `enable-git: true` or enable Confluence; otherwise the action exits early with an error reminding you to enable publishing.
@@ -64,7 +66,7 @@ jobs:
 | `openai-api-key`                            |          | Deprecated alias for `codex-api-key`, kept for compatibility with older workflows and `OPENAI_API_KEY`.                                                              |
 | `codex-model`                               |          | Optional model override passed to `codex exec --model`.                                                                                                              |
 | `codex-profile`                             |          | Optional profile passed to `codex exec --profile`.                                                                                                                   |
-| `codex-sandbox`                             |          | Sandbox mode passed to `codex exec --sandbox`. Defaults to `read-only`.                                                                                             |
+| `codex-sandbox`                             |          | Sandbox mode passed to `codex exec --sandbox`. Defaults to `workspace-write`.                                                                                       |
 | `codex-config`                              |          | Newline-separated `codex exec --config` overrides.                                                                                                                   |
 | `github-token`                              |          | Token used for Git and PR operations. Required only when `enable-git: true`.                                                                                         |
 | `branch-name`                               |          | Branch to push results to. Defaults to `docgen/run-<runId>-<attempt>`.                                                                                               |

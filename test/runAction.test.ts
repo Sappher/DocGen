@@ -49,7 +49,7 @@ function minimalConfig(): ActionInputs {
     codex: {
       executable: 'codex',
       apiKey: undefined,
-      sandbox: 'read-only',
+      sandbox: 'workspace-write',
       configOverrides: [],
     },
     githubToken: '',

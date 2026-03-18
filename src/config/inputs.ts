@@ -78,7 +78,7 @@ export function parseConfluencePageMapInput(raw: string): Record<string, string>
 function parseCodexSandboxMode(raw: string | undefined): CodexSandboxMode {
   const normalized = (raw ?? '').trim();
   if (!normalized) {
-    return 'read-only';
+    return 'workspace-write';
   }
 
   if (
