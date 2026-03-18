@@ -113,6 +113,11 @@ export function getActionInputs(): ActionInputs {
   }
 
   const codexExecutable = coalesceInput('codex-executable', 'CODEX_EXECUTABLE') || 'codex';
+  const codexApiKey =
+    coalesceInput('codex-api-key', 'CODEX_API_KEY') ||
+    coalesceInput('openai-api-key', 'OPENAI_API_KEY') ||
+    process.env.OPENAI_API_KEY ||
+    undefined;
   const codexModel = coalesceInput('codex-model', 'CODEX_MODEL') || undefined;
   const codexProfile = coalesceInput('codex-profile', 'CODEX_PROFILE') || undefined;
   const codexSandbox = parseCodexSandboxMode(
@@ -223,6 +228,7 @@ export function getActionInputs(): ActionInputs {
     outputFolderInput,
     codex: {
       executable: codexExecutable,
+      apiKey: codexApiKey,
       model: codexModel,
       profile: codexProfile,
       sandbox: codexSandbox,

@@ -18,9 +18,41 @@ interface GenerateOutputOptions {
 const RETRY_ATTEMPTS = 3;
 
 export class CodexCliClient {
+  private codexHomePath?: string;
+  private prepared = false;
+
   constructor(private readonly settings: CodexSettings) {}
 
+  async prepare(): Promise<void> {
+    if (this.prepared) {
+      return;
+    }
+
+    this.codexHomePath = await fs.mkdtemp(path.join(os.tmpdir(), 'docgen-codex-home-'));
+    try {
+      if (this.settings.apiKey) {
+        await this.loginWithApiKey(this.settings.apiKey);
+      }
+      this.prepared = true;
+    } catch (error) {
+      await this.cleanup();
+      throw error;
+    }
+  }
+
+  async cleanup(): Promise<void> {
+    if (!this.codexHomePath) {
+      return;
+    }
+
+    await fs.rm(this.codexHomePath, { recursive: true, force: true });
+    this.codexHomePath = undefined;
+    this.prepared = false;
+  }
+
   async generateOutput(options: GenerateOutputOptions): Promise<string> {
+    await this.prepare();
+
     for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt += 1) {
       try {
         return await this.runOnce(options);
@@ -48,6 +80,7 @@ export class CodexCliClient {
     try {
       const args = this.buildArgs(options.workingDirectory, lastMessagePath);
       const execOutput = await getExecOutput(this.settings.executable, args, {
+        env: this.buildEnvironment(),
         ignoreReturnCode: true,
         input: Buffer.from(buildCodexPrompt(options), 'utf8'),
       });
@@ -100,6 +133,47 @@ export class CodexCliClient {
 
     args.push('-');
     return args;
+  }
+
+  private async loginWithApiKey(apiKey: string): Promise<void> {
+    const loginResult = await getExecOutput(
+      this.settings.executable,
+      ['login', '--with-api-key'],
+      {
+        env: this.buildEnvironment(),
+        ignoreReturnCode: true,
+        input: Buffer.from(`${apiKey}\n`, 'utf8'),
+      },
+    );
+
+    if (loginResult.exitCode !== 0) {
+      const details = summarizeProcessError(loginResult.stderr || loginResult.stdout);
+      throw new Error(
+        `Failed to authenticate Codex CLI with the provided API key${
+          details ? `: ${details}` : ''
+        }`,
+      );
+    }
+  }
+
+  private buildEnvironment(): Record<string, string> {
+    const env: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(process.env)) {
+      if (typeof value === 'string') {
+        env[key] = value;
+      }
+    }
+
+    if (this.codexHomePath) {
+      env.CODEX_HOME = this.codexHomePath;
+    }
+
+    if (this.settings.apiKey) {
+      env.OPENAI_API_KEY = this.settings.apiKey;
+    }
+
+    return env;
   }
 
   private async readLastMessage(lastMessagePath: string): Promise<string> {
