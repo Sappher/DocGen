@@ -84,6 +84,10 @@ export class CodexCliClient {
         ignoreReturnCode: true,
         input: Buffer.from(buildCodexPrompt(options), 'utf8'),
       });
+      const sandboxFailure = detectSandboxFailure(execOutput.stdout, execOutput.stderr);
+      if (sandboxFailure) {
+        throw new Error(buildSandboxFailureMessage(sandboxFailure, this.settings.sandbox));
+      }
 
       const content = await this.readLastMessage(lastMessagePath);
       if (execOutput.exitCode !== 0) {
@@ -217,4 +221,30 @@ function summarizeProcessError(output: string): string {
   }
 
   return lines.slice(-3).join(' | ');
+}
+
+function detectSandboxFailure(stdout: string, stderr: string): string | undefined {
+  const combined = `${stdout}\n${stderr}`;
+  const patterns = [
+    /bwrap:[^\n]*Failed RTM_NEWADDR:[^\n]*/i,
+    /bwrap:[^\n]*Operation not permitted[^\n]*/i,
+    /loopback:[^\n]*Operation not permitted[^\n]*/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = combined.match(pattern);
+    if (match) {
+      return match[0].trim();
+    }
+  }
+
+  return undefined;
+}
+
+function buildSandboxFailureMessage(details: string, sandbox: CodexSettings['sandbox']): string {
+  const suggestion =
+    sandbox === 'danger-full-access'
+      ? 'Codex shell access was blocked even with danger-full-access.'
+      : 'Try setting codex-sandbox to danger-full-access for GitHub Actions runners.';
+  return `Codex could not inspect the repository because its shell sandbox failed (${details}). ${suggestion}`;
 }

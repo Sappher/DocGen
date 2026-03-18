@@ -116,6 +116,34 @@ describe('CodexCliClient', () => {
     ).rejects.toThrow('Codex exited with code 1');
   });
 
+  it('fails fast on shell sandbox setup errors', async () => {
+    getExecOutputMock.mockImplementation(async (_command: string, args: string[]) => {
+      const outputIndex = args.indexOf('--output-last-message');
+      const outputPath = args[outputIndex + 1];
+      await fs.writeFile(outputPath, '# fallback\n');
+      return {
+        exitCode: 0,
+        stdout: 'bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted',
+        stderr: '',
+      };
+    });
+
+    const client = new CodexCliClient({
+      executable: 'codex',
+      sandbox: 'workspace-write',
+      configOverrides: [],
+    });
+
+    await expect(
+      client.generateOutput({
+        workingDirectory: '/repo',
+        promptName: 'ARCHITECTURE.md',
+        promptContent: 'Explain the architecture.',
+        outputRelativePath: 'ARCHITECTURE.md',
+      }),
+    ).rejects.toThrow('Try setting codex-sandbox to danger-full-access');
+  });
+
   it('fails when api-key login fails', async () => {
     getExecOutputMock.mockResolvedValue({
       exitCode: 1,
