@@ -11,7 +11,6 @@ export interface ActionInputs {
   prTitle: string;
   prBody: string;
   dryRun: boolean;
-  repoFullName: string;
   repositoryOwner: string;
   repositoryName: string;
   runId: number;
@@ -35,12 +34,6 @@ export type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-ac
 export interface PromptFile {
   absolutePath: string;
   relativePath: string;
-  content: string;
-}
-
-export interface RepositoryFile {
-  relativePath: string;
-  size: number;
   content: string;
 }
 

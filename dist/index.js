@@ -34285,10 +34285,7 @@ function getActionInputs() {
         throw new Error('Missing GitHub token. Provide it via the github-token input or env when enable-git is true.');
     }
     const codexExecutable = coalesceInput('codex-executable', 'CODEX_EXECUTABLE') || 'codex';
-    const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') ||
-        coalesceInput('openai-api-key', 'OPENAI_API_KEY') ||
-        process.env.OPENAI_API_KEY ||
-        undefined;
+    const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') || undefined;
     const codexModel = coalesceInput('codex-model', 'CODEX_MODEL') || undefined;
     const codexProfile = coalesceInput('codex-profile', 'CODEX_PROFILE') || undefined;
     const codexSandbox = parseCodexSandboxMode(coalesceInput('codex-sandbox', 'CODEX_SANDBOX') || process.env.CODEX_SANDBOX);
@@ -34386,7 +34383,6 @@ function getActionInputs() {
         prTitle,
         prBody: prBodyTemplate,
         dryRun,
-        repoFullName,
         repositoryOwner,
         repositoryName,
         runId,
@@ -34398,11 +34394,11 @@ function getActionInputs() {
 }
 function loadSystemPrompt(filePath) {
     if (!fs_1.default.existsSync(filePath)) {
-        throw new Error('file not found');
+        throw new Error(`System prompt file not found: ${filePath}`);
     }
     const content = fs_1.default.readFileSync(filePath, 'utf8').trim();
     if (!content) {
-        throw new Error('file is empty');
+        throw new Error(`System prompt file is empty: ${filePath}`);
     }
     return content;
 }
@@ -34515,6 +34511,10 @@ class CodexCliClient {
                 ignoreReturnCode: true,
                 input: Buffer.from(buildCodexPrompt(options), 'utf8'),
             });
+            const authFailure = detectAuthFailure(execOutput.stdout, execOutput.stderr);
+            if (authFailure) {
+                throw new Error(authFailure);
+            }
             const sandboxFailure = detectSandboxFailure(execOutput.stdout, execOutput.stderr);
             if (sandboxFailure) {
                 throw new Error(buildSandboxFailureMessage(sandboxFailure, this.settings.sandbox));
@@ -34579,9 +34579,6 @@ class CodexCliClient {
         if (this.codexHomePath) {
             env.CODEX_HOME = this.codexHomePath;
         }
-        if (this.settings.apiKey) {
-            env.OPENAI_API_KEY = this.settings.apiKey;
-        }
         return env;
     }
     async readLastMessage(lastMessagePath) {
@@ -34632,6 +34629,21 @@ function detectSandboxFailure(stdout, stderr) {
         const match = combined.match(pattern);
         if (match) {
             return match[0].trim();
+        }
+    }
+    return undefined;
+}
+function detectAuthFailure(stdout, stderr) {
+    const combined = `${stdout}\n${stderr}`;
+    const patterns = [
+        /401 Unauthorized:[^\n]*/i,
+        /Missing bearer or basic authentication in header[^\n]*/i,
+        /invalid_api_key[^\n]*/i,
+    ];
+    for (const pattern of patterns) {
+        const match = combined.match(pattern);
+        if (match) {
+            return `Codex authentication failed (${match[0].trim()}). Provide a valid codex-api-key or pre-authenticate the Codex CLI on the runner.`;
         }
     }
     return undefined;

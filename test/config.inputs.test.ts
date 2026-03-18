@@ -110,6 +110,16 @@ describe('getActionInputs', () => {
     ]);
   });
 
+  it('reads codex api key from CODEX_API_KEY', () => {
+    mockCoreInputs({});
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_WORKSPACE = '/tmp/workspace';
+    process.env.CODEX_API_KEY = 'env-key';
+
+    const inputs = getActionInputs();
+    expect(inputs.codex.apiKey).toBe('env-key');
+  });
+
   it('rejects invalid codex sandbox values', () => {
     mockCoreInputs({
       'codex-sandbox': 'invalid',
@@ -118,17 +128,6 @@ describe('getActionInputs', () => {
     process.env.GITHUB_WORKSPACE = '/tmp/workspace';
 
     expect(() => getActionInputs()).toThrow('Invalid codex-sandbox');
-  });
-
-  it('falls back to the legacy openai api key input', () => {
-    mockCoreInputs({
-      'openai-api-key': 'legacy-key',
-    });
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.GITHUB_WORKSPACE = '/tmp/workspace';
-
-    const inputs = getActionInputs();
-    expect(inputs.codex.apiKey).toBe('legacy-key');
   });
 
   it('loads system prompt from file', () => {

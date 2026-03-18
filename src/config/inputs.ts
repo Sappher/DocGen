@@ -113,11 +113,7 @@ export function getActionInputs(): ActionInputs {
   }
 
   const codexExecutable = coalesceInput('codex-executable', 'CODEX_EXECUTABLE') || 'codex';
-  const codexApiKey =
-    coalesceInput('codex-api-key', 'CODEX_API_KEY') ||
-    coalesceInput('openai-api-key', 'OPENAI_API_KEY') ||
-    process.env.OPENAI_API_KEY ||
-    undefined;
+  const codexApiKey = coalesceInput('codex-api-key', 'CODEX_API_KEY') || undefined;
   const codexModel = coalesceInput('codex-model', 'CODEX_MODEL') || undefined;
   const codexProfile = coalesceInput('codex-profile', 'CODEX_PROFILE') || undefined;
   const codexSandbox = parseCodexSandboxMode(
@@ -240,7 +236,6 @@ export function getActionInputs(): ActionInputs {
     prTitle,
     prBody: prBodyTemplate,
     dryRun,
-    repoFullName,
     repositoryOwner,
     repositoryName,
     runId,
@@ -253,11 +248,11 @@ export function getActionInputs(): ActionInputs {
 
 function loadSystemPrompt(filePath: string): string {
   if (!fs.existsSync(filePath)) {
-    throw new Error('file not found');
+    throw new Error(`System prompt file not found: ${filePath}`);
   }
   const content = fs.readFileSync(filePath, 'utf8').trim();
   if (!content) {
-    throw new Error('file is empty');
+    throw new Error(`System prompt file is empty: ${filePath}`);
   }
   return content;
 }

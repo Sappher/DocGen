@@ -84,6 +84,10 @@ export class CodexCliClient {
         ignoreReturnCode: true,
         input: Buffer.from(buildCodexPrompt(options), 'utf8'),
       });
+      const authFailure = detectAuthFailure(execOutput.stdout, execOutput.stderr);
+      if (authFailure) {
+        throw new Error(authFailure);
+      }
       const sandboxFailure = detectSandboxFailure(execOutput.stdout, execOutput.stderr);
       if (sandboxFailure) {
         throw new Error(buildSandboxFailureMessage(sandboxFailure, this.settings.sandbox));
@@ -173,10 +177,6 @@ export class CodexCliClient {
       env.CODEX_HOME = this.codexHomePath;
     }
 
-    if (this.settings.apiKey) {
-      env.OPENAI_API_KEY = this.settings.apiKey;
-    }
-
     return env;
   }
 
@@ -235,6 +235,24 @@ function detectSandboxFailure(stdout: string, stderr: string): string | undefine
     const match = combined.match(pattern);
     if (match) {
       return match[0].trim();
+    }
+  }
+
+  return undefined;
+}
+
+function detectAuthFailure(stdout: string, stderr: string): string | undefined {
+  const combined = `${stdout}\n${stderr}`;
+  const patterns = [
+    /401 Unauthorized:[^\n]*/i,
+    /Missing bearer or basic authentication in header[^\n]*/i,
+    /invalid_api_key[^\n]*/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = combined.match(pattern);
+    if (match) {
+      return `Codex authentication failed (${match[0].trim()}). Provide a valid codex-api-key or pre-authenticate the Codex CLI on the runner.`;
     }
   }
 

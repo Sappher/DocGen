@@ -60,7 +60,6 @@ beforeEach(async () => {
       prTitle: 'title',
       prBody: 'body',
       dryRun: false,
-      repoFullName: 'owner/repo',
       repositoryOwner: 'owner',
       repositoryName: 'repo',
       runId: 1,
