@@ -34264,7 +34264,7 @@ function parseConfluencePageMapInput(raw) {
 function parseCodexSandboxMode(raw) {
     const normalized = (raw ?? '').trim();
     if (!normalized) {
-        return 'read-only';
+        return 'workspace-write';
     }
     if (normalized === 'read-only' ||
         normalized === 'workspace-write' ||
