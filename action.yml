@@ -32,7 +32,7 @@ inputs:
   codex-sandbox:
     description: 'Sandbox mode passed to codex exec --sandbox'
     required: false
-    default: 'workspace-write'
+    default: 'danger-full-access'
   codex-config:
     description: 'Optional newline separated codex exec --config overrides'
     required: false

@@ -60,7 +60,7 @@ describe('getActionInputs', () => {
     expect(inputs.codex.apiKey).toBeUndefined();
     expect(inputs.githubToken).toBe('gh-token');
     expect(inputs.gitPublisherEnabled).toBe(true);
-    expect(inputs.codex.sandbox).toBe('workspace-write');
+    expect(inputs.codex.sandbox).toBe('danger-full-access');
     expect(inputs.codex.configOverrides).toEqual([]);
   });
 
