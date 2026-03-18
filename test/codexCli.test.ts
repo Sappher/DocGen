@@ -86,6 +86,9 @@ describe('CodexCliClient', () => {
 
     const prompt = getExecOutputMock.mock.calls[1][2].input.toString('utf8');
     expect(prompt).toContain('Prefer concise output.');
+    expect(prompt).toContain('Read the current target document first if it already exists');
+    expect(prompt).toContain('Base statements on files you actually inspect.');
+    expect(prompt).toContain('Do not include process narration, status updates, or commentary about your steps.');
     expect(prompt).toContain('Prompt file: docs/ARCHITECTURE.md');
     expect(prompt).toContain('Target output file: docs/ARCHITECTURE.md');
     expect(prompt).toContain('Describe the system architecture.');
