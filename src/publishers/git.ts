@@ -34,7 +34,7 @@ export class GitPublisher implements Publisher {
   async publishPromptResult(result: PromptResult): Promise<void> {
     await fs.mkdir(path.dirname(result.outputAbsolutePath), { recursive: true });
     await fs.writeFile(result.outputAbsolutePath, result.content, 'utf8');
-    core.info(`Wrote AI output to ${result.outputRelativePath}`);
+    core.info(`Wrote generated output to ${result.outputRelativePath}`);
   }
 
   async finalize(summary: RunSummary): Promise<void> {

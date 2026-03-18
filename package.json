@@ -1,10 +1,10 @@
 {
   "name": "docgen",
   "version": "0.1.0",
-  "description": "GitHub Action for AI-assisted repository analysis and documentation generation",
+  "description": "GitHub Action for Codex-assisted repository analysis and documentation generation",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && npx ncc build lib/index.js -o dist",
+    "build": "rm -rf lib dist && tsc && npx ncc build lib/index.js -o dist",
     "test": "vitest run",
     "lint": "eslint . --ext .ts",
     "prepare": "npm run build"
@@ -12,7 +12,7 @@
   "keywords": [
     "github-action",
     "documentation",
-    "openai"
+    "codex"
   ],
   "author": "",
   "license": "MIT",
@@ -21,11 +21,8 @@
     "@actions/core": "^1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.0",
-    "ignore": "^5.3.1",
-    "istextorbinary": "^6.0.0",
     "marked": "^12.0.2",
-    "node-fetch": "^2.7.0",
-    "openai": "^4.73.0"
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

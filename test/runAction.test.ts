@@ -5,6 +5,7 @@ import type { ActionInputs } from '../src/types/domain';
 
 const getActionInputsMock = vi.fn();
 const loadPromptFilesMock = vi.fn();
+const generateOutputMock = vi.fn();
 
 vi.mock('../src/config/inputs', () => ({
   getActionInputs: getActionInputsMock,
@@ -12,14 +13,8 @@ vi.mock('../src/config/inputs', () => ({
 vi.mock('../src/domain/services/prompts', () => ({
   loadPromptFiles: loadPromptFilesMock,
 }));
-vi.mock('../src/domain/services/repoScanner', () => ({
-  collectRepositoryFiles: vi.fn().mockResolvedValue([]),
-}));
-vi.mock('../src/domain/services/contextBuilder', () => ({
-  buildRepositoryContext: vi.fn().mockReturnValue({ contextText: '', includedFiles: [] }),
-}));
-vi.mock('../src/domain/services/openaiClient', () => ({
-  OpenAIClient: vi.fn().mockImplementation(() => ({ analyzePrompt: vi.fn() })),
+vi.mock('../src/domain/services/codexCli', () => ({
+  CodexCliClient: vi.fn().mockImplementation(() => ({ generateOutput: generateOutputMock })),
 }));
 
 const { runAction } = await import('../src/main/useCases/runAction');
@@ -45,13 +40,12 @@ function minimalConfig(): ActionInputs {
     outputFolder: '/tmp/out',
     promptsFolderInput: 'prompts',
     outputFolderInput: 'out',
-    openaiModel: 'model',
-    openaiApiKey: 'key',
+    codex: {
+      executable: 'codex',
+      sandbox: 'read-only',
+      configOverrides: [],
+    },
     githubToken: '',
-    excludePatterns: [],
-    maxFileSizeBytes: 500,
-    maxRepoCharacters: 500,
-    temperature: 0,
     branchName: 'branch',
     baseBranch: 'main',
     prTitle: 'title',

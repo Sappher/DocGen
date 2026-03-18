@@ -4,14 +4,8 @@ export interface ActionInputs {
   outputFolder: string;
   promptsFolderInput: string;
   outputFolderInput: string;
-  openaiModel: string;
-  openaiApiKey: string;
+  codex: CodexSettings;
   githubToken: string;
-  excludePatterns: string[];
-  maxFileSizeBytes: number;
-  maxRepoCharacters: number;
-  contextChunkSize: number;
-  temperature: number;
   branchName: string;
   baseBranch: string;
   prTitle: string;
@@ -24,9 +18,18 @@ export interface ActionInputs {
   runAttempt: number;
   systemPrompt?: string;
   gitPublisherEnabled: boolean;
-  embeddings?: EmbeddingsSettings;
   confluence?: ConfluenceSettings;
 }
+
+export interface CodexSettings {
+  executable: string;
+  model?: string;
+  profile?: string;
+  sandbox: CodexSandboxMode;
+  configOverrides: string[];
+}
+
+export type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
 
 export interface PromptFile {
   absolutePath: string;
@@ -64,17 +67,4 @@ export interface ConfluenceSettings {
   apiToken: string;
   spaceKey?: string;
   pageMap: Record<string, string>;
-}
-
-export interface EmbeddingsSettings {
-  enabled: boolean;
-  model: string;
-  maxChunksPerPrompt?: number;
-}
-
-export interface RepoChunk {
-  file: RepositoryFile;
-  chunkIndex: number;
-  totalChunks: number;
-  content: string;
 }
