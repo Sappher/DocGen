@@ -36,16 +36,16 @@ describe('getActionInputs', () => {
     restoreCoreMocks();
   });
 
-  it('throws when required secrets missing', () => {
+  it('throws when repository metadata missing', () => {
     mockCoreInputs({});
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
     process.env.GITHUB_WORKSPACE = '/tmp/workspace';
-    expect(() => getActionInputs()).toThrow('Missing OpenAI API key');
+    delete process.env.GITHUB_REPOSITORY;
+
+    expect(() => getActionInputs()).toThrow('GITHUB_REPOSITORY env is required');
   });
 
   it('returns defaults when provided', () => {
     mockCoreInputs({
-      'openai-api-key': 'test-key',
       'github-token': 'gh-token',
       'prompts-folder': 'prompts',
       'output-folder': 'docs',
@@ -56,16 +56,15 @@ describe('getActionInputs', () => {
 
     const inputs = getActionInputs();
     expect(inputs.promptsFolder).toContain('prompts');
-    expect(inputs.openaiApiKey).toBe('test-key');
+    expect(inputs.codex.executable).toBe('codex');
     expect(inputs.githubToken).toBe('gh-token');
     expect(inputs.gitPublisherEnabled).toBe(true);
-    expect(inputs.contextChunkSize).toBeGreaterThan(0);
-    expect(inputs.embeddings).toBeUndefined();
+    expect(inputs.codex.sandbox).toBe('read-only');
+    expect(inputs.codex.configOverrides).toEqual([]);
   });
 
   it('does not require github token when git publisher disabled', () => {
     mockCoreInputs({
-      'openai-api-key': 'test-key',
       'enable-git': 'false',
     });
     process.env.GITHUB_REPOSITORY = 'owner/repo';
@@ -78,7 +77,6 @@ describe('getActionInputs', () => {
 
   it('requires github token when git publisher enabled', () => {
     mockCoreInputs({
-      'openai-api-key': 'test-key',
       'enable-git': 'true',
     });
     process.env.GITHUB_REPOSITORY = 'owner/repo';
@@ -87,20 +85,36 @@ describe('getActionInputs', () => {
     expect(() => getActionInputs()).toThrow('Missing GitHub token');
   });
 
-  it('configures embeddings when enabled', () => {
+  it('configures codex settings when provided', () => {
     mockCoreInputs({
-      'openai-api-key': 'test-key',
-      'enable-embeddings': 'true',
-      'embeddings-model': 'text-embedding-3-small',
-      'max-embeddings-chunks': '25',
+      'codex-executable': '/usr/local/bin/codex',
+      'codex-model': 'gpt-5-codex',
+      'codex-profile': 'ci',
+      'codex-sandbox': 'workspace-write',
+      'codex-config': 'model_reasoning_effort = "high"\nfoo.bar=true',
     });
     process.env.GITHUB_REPOSITORY = 'owner/repo';
     process.env.GITHUB_WORKSPACE = '/tmp/workspace';
 
     const inputs = getActionInputs();
-    expect(inputs.embeddings?.enabled).toBe(true);
-    expect(inputs.embeddings?.model).toBe('text-embedding-3-small');
-    expect(inputs.embeddings?.maxChunksPerPrompt).toBe(25);
+    expect(inputs.codex.executable).toBe('/usr/local/bin/codex');
+    expect(inputs.codex.model).toBe('gpt-5-codex');
+    expect(inputs.codex.profile).toBe('ci');
+    expect(inputs.codex.sandbox).toBe('workspace-write');
+    expect(inputs.codex.configOverrides).toEqual([
+      'model_reasoning_effort = "high"',
+      'foo.bar=true',
+    ]);
+  });
+
+  it('rejects invalid codex sandbox values', () => {
+    mockCoreInputs({
+      'codex-sandbox': 'invalid',
+    });
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_WORKSPACE = '/tmp/workspace';
+
+    expect(() => getActionInputs()).toThrow('Invalid codex-sandbox');
   });
 
   it('loads system prompt from file', () => {
@@ -109,7 +123,6 @@ describe('getActionInputs', () => {
     fs.writeFileSync(tmpFile, 'System instructions');
 
     mockCoreInputs({
-      'openai-api-key': 'test-key',
       'system-prompt-file': path.relative(tmpDir, tmpFile),
     });
     process.env.GITHUB_REPOSITORY = 'owner/repo';
